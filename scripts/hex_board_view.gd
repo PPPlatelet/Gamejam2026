@@ -45,11 +45,16 @@ func _draw() -> void:
 	if show_grid:
 		for row in board.rows:
 			for column in board.columns:
-				draw_colored_polygon(board.cell_polygon(Vector2i(column, row)), GRID_VEIL)
+				var grid_cell := Vector2i(column, row)
+				if board.is_removed(grid_cell):
+					continue
+				draw_colored_polygon(board.cell_polygon(grid_cell), GRID_VEIL)
 
 	for row in board.rows:
 		for column in board.columns:
 			var cell := Vector2i(column, row)
+			if board.is_removed(cell):
+				continue
 			var fill := Color.TRANSPARENT
 			if cell == board.base_cell:
 				fill = BASE_FILL
@@ -65,7 +70,10 @@ func _draw() -> void:
 	if show_grid:
 		for row in board.rows:
 			for column in board.columns:
-				var points := board.cell_polygon(Vector2i(column, row), 0.985)
+				var line_cell := Vector2i(column, row)
+				if board.is_removed(line_cell):
+					continue
+				var points := board.cell_polygon(line_cell, 0.985)
 				var closed := points.duplicate()
 				closed.append(points[0])
 				draw_polyline(closed, LINE_COLOR, LINE_WIDTH, true)
@@ -91,14 +99,14 @@ func _draw() -> void:
 
 ## 拖塔时的两个格子标记：经过的格子是细蓝框，目标格带六个小刻度。
 func _draw_drag_marks() -> void:
-	if board.is_inside(drag_cell) and drag_cell != drag_target_cell:
+	if board.is_inside(drag_cell) and not board.is_removed(drag_cell) and drag_cell != drag_target_cell:
 		var under_points := board.cell_polygon(drag_cell, 0.96)
 		var under_closed := under_points.duplicate()
 		under_closed.append(under_points[0])
 		draw_colored_polygon(under_points, Color(DRAG_COLOR.r, DRAG_COLOR.g, DRAG_COLOR.b, 0.10))
 		draw_polyline(under_closed, DRAG_COLOR, 0.055, true)
 
-	if board.is_inside(drag_target_cell):
+	if board.is_inside(drag_target_cell) and not board.is_removed(drag_target_cell):
 		var color := DRAG_COLOR if drag_target_valid else DRAG_BAD
 		var target_points := board.cell_polygon(drag_target_cell, 0.96)
 		var target_closed := target_points.duplicate()
@@ -128,6 +136,8 @@ func _draw_numbers() -> void:
 	for row in board.rows:
 		for column in board.columns:
 			var cell := Vector2i(column, row)
+			if board.is_removed(cell):
+				continue
 			var text := "%s%d" % [_column_label(column), row + 1]
 			var text_width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
 			draw_set_transform(board.cell_center(cell), 0.0, Vector2(inverse_scale, inverse_scale))

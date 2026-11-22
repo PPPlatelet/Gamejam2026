@@ -1,4 +1,4 @@
-extends Node2D
+﻿extends Node2D
 
 ## 六边形塔防 · 框架
 ##
@@ -46,8 +46,8 @@ const STORY_OVERLAY_SCENE := preload("res://scenes/story_overlay.tscn")
 @export var level_seed := 20261122
 
 @export_group("格子")
-## 关掉判定的格子编号区间，编号沿用旧的「行 × 列数 + 列 + 1」行优先编号。
-@export var disabled_cell_ranges := [[1, 60], [74, 77], [91, 92], [109, 111], [127, 127]]
+## 直接删掉的格子编号区间，编号沿用旧的「行 × 列数 + 列 + 1」行优先编号。
+@export var removed_cell_ranges := [[1, 60], [74, 77], [91, 92], [109, 111], [127, 127]]
 
 @export_group("操作")
 ## 关着是「点塔选中 → 点格子移动」；打开是拖动移动（给以后的新功能留的）。
@@ -99,7 +99,6 @@ var _rng := RandomNumberGenerator.new()
 var _spawn_paths: Array = []
 var _story_overlay
 var _story_fired := {}
-var _disabled_cells := {}
 var _spawned_total := 0
 var _units_lost := 0
 var _elapsed := 0.0
@@ -111,7 +110,8 @@ func _ready() -> void:
 	_supplies = start_supplies
 	_rng.seed = level_seed
 	_build_board()
-	_build_disabled_cells()
+	_remove_cells()
+	_relocate_spawns()
 	_board_view.board = board
 	_fit_board()
 	_add_base_marker()
@@ -299,23 +299,47 @@ func _shuffle(items: Array) -> void:
 
 # ---------------------------------------------------------------- 放置 / 拆除
 
-## 按编号（行 × 列数 + 列 + 1）关掉一部分格子的判定：不响应鼠标、不能放船/移动过去。
-## 编号沿用旧的行优先编号，和屏幕上的列字母 + 行号是两套东西。
-func _build_disabled_cells() -> void:
+## 直接删掉一部分格子：这些格子不参与寻路、放船、悬停和编号。
+func _remove_cells() -> void:
 	var total := board.columns * board.rows
-	for pair in disabled_cell_ranges:
+	for pair in removed_cell_ranges:
 		for number in range(int(pair[0]), int(pair[1]) + 1):
 			var index: int = number - 1
 			if index < 0 or index >= total:
 				continue
-			_disabled_cells[Vector2i(index % board.columns, index / board.columns)] = true
+			board.remove_cell(Vector2i(index % board.columns, index / board.columns))
+
+
+## 出生点如果正好被删掉，就沿该列往下 / 该行往左找最近的可用格。
+func _relocate_spawns() -> void:
+	var fixed: Array[Vector2i] = []
+	for spawn in board.spawn_cells:
+		if not board.is_removed(spawn):
+			fixed.append(spawn)
+			continue
+		var replacement := _nearest_open_cell(spawn)
+		if replacement != Vector2i(-1, -1) and not fixed.has(replacement):
+			fixed.append(replacement)
+	board.spawn_cells = fixed
+
+
+func _nearest_open_cell(from: Vector2i) -> Vector2i:
+	for step in board.rows:
+		var down := Vector2i(from.x, from.y + step)
+		if board.is_inside(down) and not board.is_removed(down) and down != board.base_cell:
+			return down
+	for step in board.columns:
+		var left := Vector2i(from.x - step, from.y)
+		if board.is_inside(left) and not board.is_removed(left) and left != board.base_cell:
+			return left
+	return Vector2i(-1, -1)
 
 
 func _try_build(cell: Vector2i, type := 0, from_base := false) -> bool:
 	if board == null or not board.is_inside(cell):
 		return false
-	if _disabled_cells.has(cell):
-		_toast("这一格不开放")
+	if board.is_removed(cell):
+		_toast("这一格不存在")
 		return false
 	if cell == board.base_cell or board.spawn_cells.has(cell):
 		_toast("基地和出生点不能放")
@@ -533,7 +557,7 @@ func _apply_ghost(mouse_local: Vector2) -> void:
 		return
 	var cell := board.world_to_cell(mouse_local)
 	var cost: float = UnitClass.STATS[_place_type].cost if _place_type >= 0 else 0.0
-	if board.is_inside(cell) and not _disabled_cells.has(cell):
+	if board.is_inside(cell) and not board.is_removed(cell):
 		_ghost_unit.position = board.cell_center(cell)
 		_board_view.hover_cell = cell
 		var valid := _can_place(cell) and _supplies >= cost
@@ -682,7 +706,7 @@ func _can_drop(from_cell: Vector2i, to_cell: Vector2i) -> bool:
 		return true
 	if not board.is_inside(to_cell):
 		return false
-	if _disabled_cells.has(to_cell):
+	if board.is_removed(to_cell):
 		return false
 	if to_cell == board.base_cell or board.spawn_cells.has(to_cell):
 		return false
@@ -700,7 +724,7 @@ func _can_drop(from_cell: Vector2i, to_cell: Vector2i) -> bool:
 func _try_move_unit(from_cell: Vector2i, to_cell: Vector2i) -> bool:
 	if board == null or not board.is_inside(to_cell):
 		return false
-	if _disabled_cells.has(to_cell):
+	if board.is_removed(to_cell):
 		_toast("这一格不开放")
 		return false
 	if to_cell == board.base_cell or board.spawn_cells.has(to_cell):
@@ -793,7 +817,7 @@ func _can_block(cell: Vector2i) -> bool:
 func _can_place(cell: Vector2i) -> bool:
 	if not board.is_inside(cell):
 		return false
-	if _disabled_cells.has(cell):
+	if board.is_removed(cell):
 		return false
 	if board.is_blocked(cell):
 		return false
@@ -978,7 +1002,7 @@ func _refresh_paths() -> void:
 func _mouse_cell() -> Vector2i:
 	var local: Vector2 = _board_view.to_local(get_global_mouse_position())
 	var cell: Vector2i = board.world_to_cell(local)
-	if not board.is_inside(cell) or _disabled_cells.has(cell):
+	if not board.is_inside(cell) or board.is_removed(cell):
 		return Vector2i(-1, -1)
 	return cell
 

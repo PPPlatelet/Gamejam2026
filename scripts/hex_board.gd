@@ -24,6 +24,7 @@ var rows: int
 var base_cell := Vector2i.ZERO
 var spawn_cells: Array[Vector2i] = []
 var blocked: Dictionary = {}   # Vector2i -> "obstacle" / "tower" / "check"
+var removed: Dictionary = {}   # Vector2i -> true，直接删掉的格子（不参与寻路/放置/悬停）
 
 
 func _init(p_columns: int, p_rows: int) -> void:
@@ -41,7 +42,15 @@ func is_inside(cell: Vector2i) -> bool:
 
 
 func is_blocked(cell: Vector2i) -> bool:
-	return blocked.has(cell)
+	return blocked.has(cell) or removed.has(cell)
+
+
+func is_removed(cell: Vector2i) -> bool:
+	return removed.has(cell)
+
+
+func remove_cell(cell: Vector2i) -> void:
+	removed[cell] = true
 
 
 func block(cell: Vector2i, kind: String) -> void:
