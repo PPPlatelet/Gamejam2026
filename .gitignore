@@ -1,3 +1,8 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# 导出产物（构建文件不进仓库）
+/examin.exe
+/examin.console.exe
+/examin.pck

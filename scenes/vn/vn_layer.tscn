@@ -1,0 +1,227 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/vn_layer.gd" id="1_layer"]
+
+[sub_resource type="SystemFont" id="SystemFont_cjk"]
+font_names = PackedStringArray("Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "PingFang SC", "SimHei")
+
+[sub_resource type="SystemFont" id="SystemFont_bold"]
+font_names = PackedStringArray("Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "PingFang SC", "SimHei")
+font_weight = 700
+
+[sub_resource type="Theme" id="Theme_vn"]
+default_font = SubResource("SystemFont_cjk")
+default_font_size = 22
+
+[sub_resource type="StyleBoxFlat" id="SB_page"]
+bg_color = Color(0.969, 0.961, 0.945, 1)
+
+[sub_resource type="StyleBoxFlat" id="SB_btn_normal"]
+content_margin_left = 28.0
+content_margin_right = 28.0
+bg_color = Color(0.184, 0.42, 1, 1)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+shadow_color = Color(0.06, 0.18, 0.55, 0.35)
+shadow_size = 14
+shadow_offset = Vector2(0, 6)
+
+[sub_resource type="StyleBoxFlat" id="SB_btn_hover"]
+content_margin_left = 28.0
+content_margin_right = 28.0
+bg_color = Color(0.29, 0.51, 1, 1)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+shadow_color = Color(0.1, 0.26, 0.7, 0.45)
+shadow_size = 18
+shadow_offset = Vector2(0, 8)
+
+[sub_resource type="StyleBoxFlat" id="SB_btn_pressed"]
+content_margin_left = 28.0
+content_margin_right = 28.0
+bg_color = Color(0.125, 0.3, 0.8, 1)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+
+[sub_resource type="StyleBoxEmpty" id="SB_empty"]
+
+[node name="VnLayer" type="CanvasLayer"]
+process_mode = 3
+layer = 100
+visible = false
+script = ExtResource("1_layer")
+
+[node name="Dim" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.043, 0.051, 0.078, 0.66)
+mouse_filter = 0
+
+[node name="PageFrame" type="Control" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme = SubResource("Theme_vn")
+
+[node name="Page" type="Panel" parent="PageFrame"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("SB_page")
+
+[node name="IndexLabel" type="Label" parent="PageFrame/Page"]
+offset_left = 160.0
+offset_top = 56.0
+offset_right = 900.0
+offset_bottom = 104.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.16, 0.15, 0.13, 0.62)
+theme_override_font_sizes/font_size = 26
+text = "第 1 页 / 共 3 页 · 红"
+vertical_alignment = 1
+
+[node name="TitleLabel" type="Label" parent="PageFrame/Page"]
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -900.0
+offset_top = 56.0
+offset_right = -160.0
+offset_bottom = 104.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.16, 0.15, 0.13, 0.62)
+theme_override_font_sizes/font_size = 26
+text = "第一关 · 序章"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="RuleTop" type="ColorRect" parent="PageFrame/Page"]
+anchor_right = 1.0
+offset_left = 160.0
+offset_top = 128.0
+offset_right = -160.0
+offset_bottom = 130.0
+grow_horizontal = 2
+mouse_filter = 2
+color = Color(0.16, 0.15, 0.13, 0.18)
+
+[node name="Content" type="Control" parent="PageFrame/Page"]
+anchor_right = 1.0
+offset_left = 160.0
+offset_top = 240.0
+offset_right = -160.0
+offset_bottom = 810.0
+grow_horizontal = 2
+mouse_filter = 2
+clip_contents = true
+
+[node name="ContentCenter" type="VBoxContainer" parent="PageFrame/Page/Content"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="SpeakerLabel" type="Label" parent="PageFrame/Page/Content/ContentCenter"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.16, 0.15, 0.13, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+theme_override_font_sizes/font_size = 52
+text = "旁白"
+vertical_alignment = 1
+
+[node name="Text" type="RichTextLabel" parent="PageFrame/Page/Content/ContentCenter"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/default_color = Color(0.16, 0.15, 0.13, 1)
+theme_override_constants/line_separation = 22
+theme_override_font_sizes/normal_font_size = 76
+text = "1 2 3 4 5 6 7 8 9 10"
+fit_content = true
+scroll_active = false
+autowrap_mode = 3
+
+[node name="IdleHint" type="Label" parent="PageFrame/Page/Content"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.16, 0.15, 0.13, 0.38)
+theme_override_font_sizes/font_size = 30
+text = "点击右下角按钮开始阅读"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RuleBottom" type="ColorRect" parent="PageFrame/Page"]
+anchor_right = 1.0
+offset_left = 160.0
+offset_top = 838.0
+offset_right = -160.0
+offset_bottom = 840.0
+grow_horizontal = 2
+mouse_filter = 2
+color = Color(0.16, 0.15, 0.13, 0.18)
+
+[node name="Dots" type="HBoxContainer" parent="PageFrame/Page"]
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 160.0
+offset_top = -184.0
+offset_right = 700.0
+offset_bottom = -156.0
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="Hint" type="Label" parent="PageFrame/Page"]
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 160.0
+offset_top = -136.0
+offset_right = 1200.0
+offset_bottom = -90.0
+grow_vertical = 0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.16, 0.15, 0.13, 0.58)
+theme_override_font_sizes/font_size = 22
+text = "点蓝色按钮继续 · 空格 / 回车 也可以 · Esc 关闭"
+vertical_alignment = 1
+
+[node name="ContinueButton" type="Button" parent="PageFrame/Page"]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -500.0
+offset_top = -186.0
+offset_right = -160.0
+offset_bottom = -90.0
+grow_horizontal = 0
+grow_vertical = 0
+focus_mode = 0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.9, 0.93, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+theme_override_font_sizes/font_size = 32
+theme_override_styles/normal = SubResource("SB_btn_normal")
+theme_override_styles/hover = SubResource("SB_btn_hover")
+theme_override_styles/pressed = SubResource("SB_btn_pressed")
+theme_override_styles/focus = SubResource("SB_empty")
+text = "继续 ▶"
