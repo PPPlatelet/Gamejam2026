@@ -1,0 +1,184 @@
+class_name HexBoardView
+extends Node2D
+
+## 把 HexBoard 画出来：地面贴图 + 基地 / 出生点底色 + 鼠标悬停高亮 + 敌人路线。
+## 地面默认用 assets/The_Lands/land2_NoEdge.png 这张六边形地块逐格铺满；
+## 把 ground_texture 清空就退回白底 + 浅灰网格。
+##
+## 拖塔时（show_grid = true）会铺一层淡白并显示网格，
+## drag_cell 标记塔下方经过的格子，drag_target_cell 标记松手后的目标格。
+
+const HexBoardClass := preload("res://scripts/hex_board.gd")
+
+const LINE_COLOR := Color(0.78, 0.81, 0.85)
+const LINE_WIDTH := 0.035
+const BASE_FILL := Color(0.30, 0.58, 0.95, 0.25)
+const SPAWN_FILL := Color(1.00, 0.45, 0.30, 0.18)
+const HOVER_OK := Color(0.25, 0.75, 0.40, 0.35)
+const HOVER_BAD := Color(0.90, 0.25, 0.25, 0.35)
+const SELECT_FILL := Color(1.00, 0.82, 0.25, 0.30)
+const SELECT_LINE := Color(1.00, 0.72, 0.10, 0.95)
+const PATH_COLOR := Color(0.15, 0.45, 0.95, 0.30)
+const PATH_WIDTH := 0.10
+const ARROW_COLOR := Color(0.95, 0.45, 0.30, 0.85)
+const GRID_VEIL := Color(1.0, 1.0, 1.0, 0.55)
+const DRAG_COLOR := Color(0.40, 0.86, 0.93)
+const DRAG_BAD := Color(0.92, 0.32, 0.30)
+
+## 地面贴图：一张六边形地块。
+@export var ground_texture: Texture2D
+## 贴图里那块六边形所在的位置（像素）。换图时按新图量一下四边即可。
+@export var ground_hex_rect := Rect2(669.0, 48.0, 2870.0, 2923.0)
+
+var board: HexBoardClass
+var hover_cell := Vector2i(-1, -1)
+var hover_valid := false
+var selected_cell := Vector2i(-1, -1)
+var show_paths := false
+var show_numbers := false        # H 键切换：每格显示序号（行 × 列数 + 列 + 1）
+var preview_paths: Array = []   # Array[PackedVector2Array]
+
+var show_grid := false           # 拖塔时显示网格
+var drag_cell := Vector2i(-1, -1)          # 塔当前压住的格子（第二个图）
+var drag_target_cell := Vector2i(-1, -1)   # 松手后的目标格（第三个图）
+var drag_target_valid := true
+
+
+func _draw() -> void:
+	if board == null:
+		return
+
+	if ground_texture != null:
+		_draw_ground()
+
+	if show_grid:
+		for row in board.rows:
+			for column in board.columns:
+				draw_colored_polygon(board.cell_polygon(Vector2i(column, row)), GRID_VEIL)
+
+	for row in board.rows:
+		for column in board.columns:
+			var cell := Vector2i(column, row)
+			var fill := Color.TRANSPARENT
+			if cell == board.base_cell:
+				fill = BASE_FILL
+			elif board.spawn_cells.has(cell):
+				fill = SPAWN_FILL
+			if cell == selected_cell:
+				fill = SELECT_FILL
+			if cell == hover_cell:
+				fill = HOVER_OK if hover_valid else HOVER_BAD
+			if fill.a > 0.0:
+				draw_colored_polygon(board.cell_polygon(cell, 0.985), fill)
+
+	if ground_texture == null or show_grid:
+		for row in board.rows:
+			for column in board.columns:
+				var points := board.cell_polygon(Vector2i(column, row), 0.985)
+				var closed := points.duplicate()
+				closed.append(points[0])
+				draw_polyline(closed, LINE_COLOR, LINE_WIDTH, true)
+
+	if show_paths:
+		for path in preview_paths:
+			draw_polyline(path, PATH_COLOR, PATH_WIDTH, true)
+
+	if board.is_inside(selected_cell):
+		var selected_points := board.cell_polygon(selected_cell, 0.985)
+		var selected_closed := selected_points.duplicate()
+		selected_closed.append(selected_points[0])
+		draw_polyline(selected_closed, SELECT_LINE, LINE_WIDTH * 2.4, true)
+
+	_draw_drag_marks()
+
+	for cell in board.spawn_cells:
+		_draw_spawn_arrow(cell)
+
+	if show_numbers:
+		_draw_numbers()
+
+
+## 拖塔时的两个格子标记：经过的格子是细蓝框，目标格带六个小刻度。
+func _draw_drag_marks() -> void:
+	if board.is_inside(drag_cell) and drag_cell != drag_target_cell:
+		var under_points := board.cell_polygon(drag_cell, 0.96)
+		var under_closed := under_points.duplicate()
+		under_closed.append(under_points[0])
+		draw_colored_polygon(under_points, Color(DRAG_COLOR.r, DRAG_COLOR.g, DRAG_COLOR.b, 0.10))
+		draw_polyline(under_closed, DRAG_COLOR, 0.055, true)
+
+	if board.is_inside(drag_target_cell):
+		var color := DRAG_COLOR if drag_target_valid else DRAG_BAD
+		var target_points := board.cell_polygon(drag_target_cell, 0.96)
+		var target_closed := target_points.duplicate()
+		target_closed.append(target_points[0])
+		draw_colored_polygon(target_points, Color(color.r, color.g, color.b, 0.12))
+		draw_polyline(target_closed, color, 0.06, true)
+
+		var center := board.cell_center(drag_target_cell)
+		for i in 6:
+			var vertex: Vector2 = target_points[i]
+			var outward := (vertex - center).normalized()
+			draw_line(vertex - outward * 0.05, vertex + outward * 0.10, color, 0.05, true)
+
+
+## 把一张六边形地块贴图对齐铺到每一格上。
+func _draw_ground() -> void:
+	const UV_INSET_RATIO := 0.030   # 贴图边缘往内收一点，避开图层四周的羽化白边
+	var texture_size := ground_texture.get_size()
+	var inset := maxf(ground_hex_rect.size.x, ground_hex_rect.size.y) * UV_INSET_RATIO
+	var rect := ground_hex_rect.grow(-inset)
+	var rect_center := rect.get_center()
+	var scale_x := rect.size.x / HexBoardClass.HEX_WIDTH
+	var scale_y := rect.size.y / 2.0
+
+	var colors := PackedColorArray([Color.WHITE, Color.WHITE, Color.WHITE,
+		Color.WHITE, Color.WHITE, Color.WHITE])
+
+	for row in board.rows:
+		for column in board.columns:
+			var cell := Vector2i(column, row)
+			var center := board.cell_center(cell)
+			var points := board.cell_polygon(cell)
+			var uvs := PackedVector2Array()
+			for point in points:
+				var texture_x := rect_center.x + (point.x - center.x) * scale_x
+				var texture_y := rect_center.y + (point.y - center.y) * scale_y
+				uvs.append(Vector2(texture_x / texture_size.x, texture_y / texture_size.y))
+			draw_polygon(points, colors, uvs, ground_texture)
+
+
+## 每格画一个序号：行 × 列数 + 列 + 1（从 1 开始，按行从左到右）。
+## 文字用 1/scale 的原尺寸绘制，所以不管棋盘缩放多少，屏幕上都是固定字号。
+func _draw_numbers() -> void:
+	var font := ThemeDB.fallback_font
+	if font == null:
+		return
+	const FONT_SIZE := 16
+	var inverse_scale := 1.0 / maxf(scale.x, 0.0001)
+	var baseline := (font.get_ascent(FONT_SIZE) - font.get_descent(FONT_SIZE)) * 0.5
+	var fill_color := Color(0.08, 0.10, 0.14, 1.0)
+	var outline_color := Color(1.0, 1.0, 1.0, 0.92)
+
+	for row in board.rows:
+		for column in board.columns:
+			var cell := Vector2i(column, row)
+			var text := str(row * board.columns + column + 1)
+			var text_width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
+			draw_set_transform(board.cell_center(cell), 0.0, Vector2(inverse_scale, inverse_scale))
+			var origin := Vector2(-text_width * 0.5, baseline)
+			draw_string_outline(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, 3, outline_color)
+			draw_string(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, fill_color)
+
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+func _draw_spawn_arrow(cell: Vector2i) -> void:
+	var center := board.cell_center(cell)
+	var direction := Vector2.DOWN if cell.y == 0 else Vector2.LEFT
+	var side := Vector2(-direction.y, direction.x)
+	draw_colored_polygon(PackedVector2Array([
+		center + direction * 0.42,
+		center - direction * 0.12 + side * 0.26,
+		center - direction * 0.12 - side * 0.26,
+	]), ARROW_COLOR)

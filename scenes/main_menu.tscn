@@ -1,0 +1,274 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
+[ext_resource type="Shader" path="res://shaders/vignette.gdshader" id="2_vignette"]
+
+[sub_resource type="SystemFont" id="SystemFont_serif"]
+font_names = PackedStringArray("Source Han Serif SC", "Noto Serif CJK SC", "STZhongsong", "SimSun", "Microsoft YaHei UI")
+
+[sub_resource type="SystemFont" id="SystemFont_sans"]
+font_names = PackedStringArray("Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "PingFang SC")
+
+[sub_resource type="ShaderMaterial" id="Mat_vignette"]
+shader = ExtResource("2_vignette")
+shader_parameter/vignette_strength = 0.72
+shader_parameter/grain_strength = 0.018
+shader_parameter/inner_radius = 0.34
+shader_parameter/outer_radius = 0.86
+
+[sub_resource type="Gradient" id="Gradient_left"]
+offsets = PackedFloat32Array(0, 0.62, 1)
+colors = PackedColorArray(0, 0, 0, 0.92, 0, 0, 0, 0.6, 0, 0, 0, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_left"]
+gradient = SubResource("Gradient_left")
+width = 256
+height = 8
+fill_from = Vector2(0, 0)
+fill_to = Vector2(1, 0)
+
+[sub_resource type="StyleBoxFlat" id="SB_btn_normal"]
+content_margin_left = 28.0
+content_margin_top = 12.0
+content_margin_right = 22.0
+content_margin_bottom = 12.0
+bg_color = Color(0.031, 0.045, 0.071, 0.74)
+border_width_left = 3
+border_color = Color(0.78, 0.63, 0.38, 0.55)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="SB_btn_hover"]
+content_margin_left = 28.0
+content_margin_top = 12.0
+content_margin_right = 22.0
+content_margin_bottom = 12.0
+bg_color = Color(0.75, 0.58, 0.3, 0.2)
+border_width_left = 3
+border_color = Color(1, 0.85, 0.55, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="SB_btn_pressed"]
+content_margin_left = 28.0
+content_margin_top = 12.0
+content_margin_right = 22.0
+content_margin_bottom = 12.0
+bg_color = Color(0.75, 0.58, 0.3, 0.32)
+border_width_left = 3
+border_color = Color(1, 0.91, 0.68, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="SB_btn_focus"]
+bg_color = Color(0, 0, 0, 0)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.93, 0.76, 0.46, 0.6)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[node name="MainMenu" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 1
+clip_contents = true
+script = ExtResource("1_menu")
+
+[node name="Background" type="TextureRect" parent="."]
+unique_name_in_owner = true
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Tint" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+color = Color(0.012, 0.02, 0.04, 0.36)
+
+[node name="LeftScrim" type="TextureRect" parent="."]
+anchor_bottom = 1.0
+offset_right = 980.0
+mouse_filter = 2
+texture = SubResource("GradientTexture2D_left")
+expand_mode = 1
+stretch_mode = 0
+
+[node name="Vignette" type="ColorRect" parent="."]
+material = SubResource("Mat_vignette")
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Kicker" type="Label" parent="."]
+offset_left = 138.0
+offset_top = 146.0
+offset_right = 900.0
+offset_bottom = 182.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.83, 0.7, 0.45, 0.88)
+theme_override_fonts/font = SubResource("SystemFont_sans")
+theme_override_font_sizes/font_size = 18
+text = "六 边 形   ·   塔 防"
+vertical_alignment = 1
+
+[node name="Title" type="Label" parent="."]
+offset_left = 128.0
+offset_top = 176.0
+offset_right = 1100.0
+offset_bottom = 328.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.945, 0.92, 0.85, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.72)
+theme_override_constants/shadow_offset_x = 3
+theme_override_constants/shadow_offset_y = 4
+theme_override_constants/shadow_outline_size = 8
+theme_override_fonts/font = SubResource("SystemFont_serif")
+theme_override_font_sizes/font_size = 100
+text = "THE LANDS"
+vertical_alignment = 1
+
+[node name="TitleCn" type="Label" parent="."]
+offset_left = 138.0
+offset_top = 318.0
+offset_right = 800.0
+offset_bottom = 364.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.84, 0.72, 0.48, 0.95)
+theme_override_fonts/font = SubResource("SystemFont_serif")
+theme_override_font_sizes/font_size = 30
+text = "六 边 之 地"
+vertical_alignment = 1
+
+[node name="Divider" type="ColorRect" parent="."]
+offset_left = 140.0
+offset_top = 388.0
+offset_right = 400.0
+offset_bottom = 390.0
+mouse_filter = 2
+color = Color(0.8, 0.66, 0.42, 0.45)
+
+[node name="MenuButtons" type="VBoxContainer" parent="."]
+offset_left = 138.0
+offset_top = 466.0
+offset_right = 518.0
+offset_bottom = 686.0
+theme_override_constants/separation = 14
+
+[node name="StartButton" type="Button" parent="MenuButtons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(380, 64)
+layout_mode = 2
+focus_neighbor_top = NodePath("../QuitButton")
+focus_neighbor_bottom = NodePath("../CreditsButton")
+theme_override_colors/font_color = Color(0.9, 0.88, 0.82, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.84, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.9, 0.7, 1)
+theme_override_fonts/font = SubResource("SystemFont_sans")
+theme_override_font_sizes/font_size = 27
+theme_override_styles/normal = SubResource("SB_btn_normal")
+theme_override_styles/hover = SubResource("SB_btn_hover")
+theme_override_styles/pressed = SubResource("SB_btn_pressed")
+theme_override_styles/focus = SubResource("SB_btn_focus")
+text = "开始游戏"
+alignment = 0
+
+[node name="CreditsButton" type="Button" parent="MenuButtons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(380, 64)
+layout_mode = 2
+focus_neighbor_top = NodePath("../StartButton")
+focus_neighbor_bottom = NodePath("../QuitButton")
+theme_override_colors/font_color = Color(0.9, 0.88, 0.82, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.84, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.9, 0.7, 1)
+theme_override_fonts/font = SubResource("SystemFont_sans")
+theme_override_font_sizes/font_size = 27
+theme_override_styles/normal = SubResource("SB_btn_normal")
+theme_override_styles/hover = SubResource("SB_btn_hover")
+theme_override_styles/pressed = SubResource("SB_btn_pressed")
+theme_override_styles/focus = SubResource("SB_btn_focus")
+text = "制作名单"
+alignment = 0
+
+[node name="QuitButton" type="Button" parent="MenuButtons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(380, 64)
+layout_mode = 2
+focus_neighbor_top = NodePath("../CreditsButton")
+focus_neighbor_bottom = NodePath("../StartButton")
+theme_override_colors/font_color = Color(0.9, 0.88, 0.82, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.84, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.9, 0.7, 1)
+theme_override_fonts/font = SubResource("SystemFont_sans")
+theme_override_font_sizes/font_size = 27
+theme_override_styles/normal = SubResource("SB_btn_normal")
+theme_override_styles/hover = SubResource("SB_btn_hover")
+theme_override_styles/pressed = SubResource("SB_btn_pressed")
+theme_override_styles/focus = SubResource("SB_btn_focus")
+text = "退出游戏"
+alignment = 0
+
+[node name="Toast" type="Label" parent="."]
+unique_name_in_owner = true
+offset_left = 140.0
+offset_top = 712.0
+offset_right = 900.0
+offset_bottom = 752.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.95, 0.83, 0.58, 1)
+theme_override_fonts/font = SubResource("SystemFont_sans")
+theme_override_font_sizes/font_size = 18
+text = "制作名单：占位，正式版再补。"
+vertical_alignment = 1
+
+[node name="Version" type="Label" parent="."]
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 64.0
+offset_top = -72.0
+offset_right = 760.0
+offset_bottom = -36.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.88, 0.86, 0.8, 0.42)
+theme_override_fonts/font = SubResource("SystemFont_sans")
+theme_override_font_sizes/font_size = 15
+text = "v0.1 · 开始菜单为占位版本，后续替换"
+vertical_alignment = 1
+
+[node name="KeyHint" type="Label" parent="."]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -520.0
+offset_top = -72.0
+offset_right = -64.0
+offset_bottom = -36.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.88, 0.86, 0.8, 0.42)
+theme_override_fonts/font = SubResource("SystemFont_sans")
+theme_override_font_sizes/font_size = 15
+text = "↑ ↓ 选择　·　Enter 确认"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="Curtain" type="ColorRect" parent="."]
+unique_name_in_owner = true
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+color = Color(0, 0, 0, 1)
