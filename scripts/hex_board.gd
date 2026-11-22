@@ -53,6 +53,10 @@ func remove_cell(cell: Vector2i) -> void:
 	removed[cell] = true
 
 
+func restore_cell(cell: Vector2i) -> void:
+	removed.erase(cell)
+
+
 func block(cell: Vector2i, kind: String) -> void:
 	blocked[cell] = kind
 

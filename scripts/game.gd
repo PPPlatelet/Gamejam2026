@@ -1,4 +1,4 @@
-﻿extends Node2D
+extends Node2D
 
 ## 六边形塔防 · 框架
 ##
@@ -48,6 +48,13 @@ const STORY_OVERLAY_SCENE := preload("res://scenes/story_overlay.tscn")
 @export_group("格子")
 ## 直接删掉的格子编号区间，编号沿用旧的「行 × 列数 + 列 + 1」行优先编号。
 @export var removed_cell_ranges := [[1, 60], [74, 77], [91, 92], [109, 111], [127, 127]]
+## 删完之后再补回来的格子（列, 行，从 0 开始）。
+## 当前补的是 I4~R4 上面一行（I3~R3）+ A9 上方一格（A8）+ B8 上方一格（B7）。
+@export var restored_cells: Array[Vector2i] = [
+	Vector2i(8, 2), Vector2i(9, 2), Vector2i(10, 2), Vector2i(11, 2), Vector2i(12, 2),
+	Vector2i(13, 2), Vector2i(14, 2), Vector2i(15, 2), Vector2i(16, 2), Vector2i(17, 2),
+	Vector2i(0, 7), Vector2i(1, 6),
+]
 
 @export_group("操作")
 ## 关着是「点塔选中 → 点格子移动」；打开是拖动移动（给以后的新功能留的）。
@@ -111,6 +118,7 @@ func _ready() -> void:
 	_rng.seed = level_seed
 	_build_board()
 	_remove_cells()
+	_restore_cells()
 	_relocate_spawns()
 	_board_view.board = board
 	_fit_board()
@@ -308,6 +316,12 @@ func _remove_cells() -> void:
 			if index < 0 or index >= total:
 				continue
 			board.remove_cell(Vector2i(index % board.columns, index / board.columns))
+
+
+## 删除之后再把一部分格子补回来。
+func _restore_cells() -> void:
+	for cell in restored_cells:
+		board.restore_cell(cell)
 
 
 ## 出生点如果正好被删掉，就沿该列往下 / 该行往左找最近的可用格。
