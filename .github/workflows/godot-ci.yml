@@ -50,5 +50,6 @@ jobs:
         with:
           name: godot-ci-logs
           path: .ci-logs/
+          include-hidden-files: true
           if-no-files-found: warn
           retention-days: 7
