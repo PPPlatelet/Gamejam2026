@@ -113,7 +113,7 @@ func _draw_drag_marks() -> void:
 			draw_line(vertex - outward * 0.05, vertex + outward * 0.10, color, 0.05, true)
 
 
-## 每格画一个序号：行 × 列数 + 列 + 1（从 1 开始，按行从左到右）。
+## 每格画一个编号：列字母 + 行号（A1、B3……），行从上往下 1 开始。
 ## 文字用 1/scale 的原尺寸绘制，所以不管棋盘缩放多少，屏幕上都是固定字号。
 func _draw_numbers() -> void:
 	var font := ThemeDB.fallback_font
@@ -128,7 +128,7 @@ func _draw_numbers() -> void:
 	for row in board.rows:
 		for column in board.columns:
 			var cell := Vector2i(column, row)
-			var text := str(row * board.columns + column + 1)
+			var text := "%s%d" % [_column_label(column), row + 1]
 			var text_width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
 			draw_set_transform(board.cell_center(cell), 0.0, Vector2(inverse_scale, inverse_scale))
 			var origin := Vector2(-text_width * 0.5, baseline)
@@ -136,6 +136,18 @@ func _draw_numbers() -> void:
 			draw_string(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, fill_color)
 
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## 列号转字母：0 → A、1 → B……25 → Z、26 → AA。
+func _column_label(column: int) -> String:
+	var label := ""
+	var value := column
+	while true:
+		label = String.chr(65 + value % 26) + label
+		value = value / 26 - 1
+		if value < 0:
+			break
+	return label
 
 
 func _draw_spawn_arrow(cell: Vector2i) -> void:
