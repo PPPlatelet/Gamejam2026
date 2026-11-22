@@ -19,7 +19,8 @@
 
 | 文件 | 来源 | 说明 |
 |---|---|---|
-| `assets/The_Lands/land1.jpg`、`land2.jpg`、`land1_NoEdge.png`、`land2_NoEdge.png` | 团队成员**自绘**（2026-11-22 确认） | 地图底图；当前用 `land2_NoEdge.png` 作格子贴图；允许用于本次比赛 |
+| `assets/The_Lands/land1.jpg`、`land2.jpg`、`land1_NoEdge.png`、`land2_NoEdge.png` | 团队成员**自绘**（2026-11-22 确认） | 地图底图；已不再逐格铺设（背景改用 `fog_land.png`），文件保留备用 |
+| `assets/The_Lands/fog_land.png` | 团队成员**自绘**（2026-11-22 确认） | 当前场景背景图，铺满屏幕；格子判定保留但不再显示地块/网格 |
 | `assets/The_Lands/图层 1.png` ～ `图层 9.png` | 团队成员**自绘**（2026-11-22 确认） | 分层地图素材，当前未在场景中引用 |
 | `assets/The_Lands/sea_map.png` | 团队成员**自绘**（2026-11-22 确认） | 海面预览图，仅用于 `scenes/preview_sea.tscn`，未接入正式关卡 |
 | `assets/opening/*.png`、`opening/*.png` | 当前为 **DSH 生成**的临时版本（2026-11-22 确认） | 开场插画；计划替换为团队自绘版本，替换后更新本表 |

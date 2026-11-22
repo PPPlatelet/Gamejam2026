@@ -1,10 +1,9 @@
 class_name HexBoardView
 extends Node2D
 
-## 把 HexBoard 画出来：地面贴图 + 基地 / 出生点底色 + 鼠标悬停高亮 + 敌人路线。
-## 地面默认用 assets/The_Lands/land2_NoEdge.png 这张六边形地块逐格铺满；
-## 把 ground_texture 清空就退回白底 + 浅灰网格。
-##
+## 把 HexBoard 画出来：基地 / 出生点底色 + 鼠标悬停高亮 + 敌人路线。
+## 背景图由 game.tscn 里的 Backdrop 层铺满，这里不再逐格贴地块；
+## 格子只保留判定（悬停、放船、寻路），平时不画网格。
 ## 拖塔时（show_grid = true）会铺一层淡白并显示网格，
 ## drag_cell 标记塔下方经过的格子，drag_target_cell 标记松手后的目标格。
 
@@ -25,11 +24,6 @@ const GRID_VEIL := Color(1.0, 1.0, 1.0, 0.55)
 const DRAG_COLOR := Color(0.40, 0.86, 0.93)
 const DRAG_BAD := Color(0.92, 0.32, 0.30)
 
-## 地面贴图：一张六边形地块。
-@export var ground_texture: Texture2D
-## 贴图里那块六边形所在的位置（像素）。换图时按新图量一下四边即可。
-@export var ground_hex_rect := Rect2(669.0, 48.0, 2870.0, 2923.0)
-
 var board: HexBoardClass
 var hover_cell := Vector2i(-1, -1)
 var hover_valid := false
@@ -47,9 +41,6 @@ var drag_target_valid := true
 func _draw() -> void:
 	if board == null:
 		return
-
-	if ground_texture != null:
-		_draw_ground()
 
 	if show_grid:
 		for row in board.rows:
@@ -71,7 +62,7 @@ func _draw() -> void:
 			if fill.a > 0.0:
 				draw_colored_polygon(board.cell_polygon(cell, 0.985), fill)
 
-	if ground_texture == null or show_grid:
+	if show_grid:
 		for row in board.rows:
 			for column in board.columns:
 				var points := board.cell_polygon(Vector2i(column, row), 0.985)
@@ -120,32 +111,6 @@ func _draw_drag_marks() -> void:
 			var vertex: Vector2 = target_points[i]
 			var outward := (vertex - center).normalized()
 			draw_line(vertex - outward * 0.05, vertex + outward * 0.10, color, 0.05, true)
-
-
-## 把一张六边形地块贴图对齐铺到每一格上。
-func _draw_ground() -> void:
-	const UV_INSET_RATIO := 0.030   # 贴图边缘往内收一点，避开图层四周的羽化白边
-	var texture_size := ground_texture.get_size()
-	var inset := maxf(ground_hex_rect.size.x, ground_hex_rect.size.y) * UV_INSET_RATIO
-	var rect := ground_hex_rect.grow(-inset)
-	var rect_center := rect.get_center()
-	var scale_x := rect.size.x / HexBoardClass.HEX_WIDTH
-	var scale_y := rect.size.y / 2.0
-
-	var colors := PackedColorArray([Color.WHITE, Color.WHITE, Color.WHITE,
-		Color.WHITE, Color.WHITE, Color.WHITE])
-
-	for row in board.rows:
-		for column in board.columns:
-			var cell := Vector2i(column, row)
-			var center := board.cell_center(cell)
-			var points := board.cell_polygon(cell)
-			var uvs := PackedVector2Array()
-			for point in points:
-				var texture_x := rect_center.x + (point.x - center.x) * scale_x
-				var texture_y := rect_center.y + (point.y - center.y) * scale_y
-				uvs.append(Vector2(texture_x / texture_size.x, texture_y / texture_size.y))
-			draw_polygon(points, colors, uvs, ground_texture)
 
 
 ## 每格画一个序号：行 × 列数 + 列 + 1（从 1 开始，按行从左到右）。
