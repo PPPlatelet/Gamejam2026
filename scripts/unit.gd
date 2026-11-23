@@ -1,4 +1,4 @@
-class_name Unit
+﻿class_name Unit
 extends Node2D
 
 ## 三种船（占位图：三个颜色的方块）。
@@ -16,7 +16,7 @@ const STATS := {
 		"name": "哨船",
 		"color": Color(0.28, 0.55, 0.88),
 		"cost": 15.0,
-		"hp": 160.0,
+		"hp": 190.0,
 		"range": 2.6,
 		"attack": 0.0,
 		"interval": 0.0,
@@ -27,7 +27,7 @@ const STATS := {
 		"name": "火箭船",
 		"color": Color(0.92, 0.52, 0.26),
 		"cost": 25.0,
-		"hp": 70.0,
+		"hp": 90.0,
 		"range": 3.6,
 		"attack": 8.0,
 		"interval": 0.5,
@@ -39,7 +39,7 @@ const STATS := {
 		"name": "炮船",
 		"color": Color(0.58, 0.47, 0.78),
 		"cost": 35.0,
-		"hp": 100.0,
+		"hp": 120.0,
 		"range": 4.4,
 		"attack": 18.0,
 		"interval": 1.7,

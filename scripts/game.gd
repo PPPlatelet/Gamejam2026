@@ -1,4 +1,4 @@
-extends Node2D
+﻿extends Node2D
 
 ## 六边形塔防 · 框架
 ##
@@ -44,6 +44,10 @@ const STORY_OVERLAY_SCENE := preload("res://scenes/story_overlay.tscn")
 @export var obstacle_count := 7
 @export var enemy_speed_cells := 1.0
 @export var level_seed := 20261122
+## 一局时长（秒）：撑到这时候且基地还在，就判胜利。
+@export var match_seconds := 900.0
+## 剧本出兵数量倍率：调难度用，1.0 就是剧本原样。
+@export var wave_scale := 1.0
 
 @export_group("格子")
 ## 直接删掉的格子编号区间，编号沿用旧的「行 × 列数 + 列 + 1」行优先编号。
@@ -62,14 +66,14 @@ const STORY_OVERLAY_SCENE := preload("res://scenes/story_overlay.tscn")
 
 @export_group("资源")
 ## 开局给的资源（设成 0 就是从零开始攒）。
-@export var start_command := 10.0
-@export var start_supplies := 40.0
+@export var start_command := 20.0
+@export var start_supplies := 50.0
 ## 指挥点：每秒 +command_per_second，最多 command_max。
 @export var command_max := 50.0
 @export var command_per_second := 1.0
 ## 粮草：每 supplies_seconds 秒 +1，最多 supplies_max。
 @export var supplies_max := 200.0
-@export var supplies_seconds := 5.0
+@export var supplies_seconds := 2.75
 ## 移动每走一格扣指挥点。
 @export var move_cost_per_cell := 2.0
 
@@ -149,6 +153,8 @@ func _process(delta: float) -> void:
 	_supplies = minf(supplies_max, _supplies + delta / maxf(supplies_seconds, 0.01))
 	_elapsed += delta
 	_check_story()
+	if _elapsed >= match_seconds and not _is_over:
+		_win()
 	_refresh_panel()
 
 	if _placing:
@@ -923,7 +929,8 @@ func _spawn_from_script(spec: Dictionary) -> void:
 		var type := _enemy_type_by_name(str(key))
 		if type < 0:
 			continue
-		for i in int(spec[key]):
+		var count := maxi(1, ceili(int(spec[key]) * wave_scale))
+		for i in count:
 			if delay <= 0.0:
 				_spawn_enemy(type)
 			else:
@@ -1163,6 +1170,27 @@ func _game_over() -> void:
 	var page = GAME_OVER_SCENE.instantiate()
 	add_child(page)
 	page.set_arrived(_reached)
+	page.retry_requested.connect(_on_retry_requested)
+	page.menu_requested.connect(_on_menu_requested)
+
+
+## 撑满一局：胜利页面，复用 GameOver 场景的胜利样式。
+func _win() -> void:
+	if _is_over:
+		return
+	_is_over = true
+	if _placing:
+		_cancel_place_mode()
+	if _selected_unit_cell != Vector2i(-1, -1):
+		_select_tower(Vector2i(-1, -1))
+	_board_view.drag_target_cell = Vector2i(-1, -1)
+	_board_view.queue_redraw()
+	if _dragging:
+		_end_drag_visuals()
+	get_tree().paused = true
+	var page = GAME_OVER_SCENE.instantiate()
+	add_child(page)
+	page.set_victory(_kills)
 	page.retry_requested.connect(_on_retry_requested)
 	page.menu_requested.connect(_on_menu_requested)
 
