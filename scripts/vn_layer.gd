@@ -1,4 +1,4 @@
-extends CanvasLayer
+﻿extends CanvasLayer
 
 ## 视觉小说播放层（画面部分）。
 ##
@@ -25,8 +25,6 @@ const LIGHT_INK := Color(1.0, 0.98, 0.94)
 const DARK_INK := Color(0.16, 0.15, 0.13)
 const DEFAULT_TYPE_SPEED := 30.0   # 每秒出现多少个字，0 = 瞬间全部出现
 const DEFAULT_PAGE_HOLD := 1.6     # 文字显示完后停留多久再自动翻页（秒）
-## 正文使用的字体（说话人和正文都统一用它）。
-const BODY_FONT_PATH := "res://fonts/ZhiMangXing.ttf"
 
 @onready var _dim: ColorRect = $Dim
 @onready var _frame: Control = $PageFrame
@@ -67,22 +65,11 @@ func _ready() -> void:
 	_apply_body_font()
 
 
-## 正文 / 说话人统一用 fonts/ZhiMangXing.ttf。
-## 用 load_dynamic_font 直接读 ttf，不依赖 Godot 的导入缓存；
-## 换字体时把新 ttf 放进 fonts/，再改 BODY_FONT_PATH 即可。
+## 正文 / 说话人统一用 Noto Serif SC（宋体）。
 func _apply_body_font() -> void:
-	if not FileAccess.file_exists(BODY_FONT_PATH):
-		push_warning("视觉小说：找不到正文字体 %s，继续用默认字体" % BODY_FONT_PATH)
-		return
-	var font := FontFile.new()
-	var err := font.load_dynamic_font(BODY_FONT_PATH)
-	if err != OK:
-		push_error("视觉小说：正文字体加载失败 %s（错误码 %d）" % [BODY_FONT_PATH, err])
-		return
-	# 这个手写体的空格很窄，占位数字 / 英文之间会粘在一起；用 FontVariation 加宽空格
-	var body_font := FontVariation.new()
-	body_font.base_font = font
-	body_font.spacing_space = 16
+	# 宋体的空格偏窄，占位数字 / 英文之间会粘在一起；用 FontVariation 加宽空格
+	var body_font: FontVariation = SongFont.make(400.0)
+	body_font.spacing_space = 12
 	_speaker_label.add_theme_font_override("font", body_font)
 	_text.add_theme_font_override("normal_font", body_font)
 

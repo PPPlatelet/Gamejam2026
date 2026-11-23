@@ -9,13 +9,12 @@ extends Control
 
 signal finished
 
-const TITLE_FONT := preload("res://fonts/ZhiMangXing.ttf")
+var _title_font: Font = SongFont.make(500.0)
 const SCROLL_TEXTURE := preload("res://assets/opening/scroll_frame_wide.png")
 
 const TITLE_TEXT := "第一关"
 const SUBTITLE_TEXT := "雾海哨线 · 雾起"
-const SCROLL_ASPECT := 1537.0 / 1022.0
-const SCROLL_WIDTH_RATIO := 0.86
+const SCROLL_TEXTURE_SIZE := Vector2(1537.0, 1022.0)
 
 var _mask: Control
 var _mask_right: ColorRect
@@ -35,22 +34,20 @@ func _ready() -> void:
 
 
 func _build(view: Vector2) -> void:
-	var scroll_width := view.x * SCROLL_WIDTH_RATIO
-	var scroll_height := scroll_width / SCROLL_ASPECT
+	# 卷轴按“铺满全屏”缩放：纸窗覆盖整屏，卷轴框贴着屏幕边，不再浮在中间。
+	var fit_scale := maxf(view.x / SCROLL_TEXTURE_SIZE.x, view.y / SCROLL_TEXTURE_SIZE.y)
+	var scroll_width := SCROLL_TEXTURE_SIZE.x * fit_scale
+	var scroll_height := SCROLL_TEXTURE_SIZE.y * fit_scale
 	_scroll_width = scroll_width
-	var top := (view.y - scroll_height) * 0.5
-	_scroll_rect = Rect2((view.x - scroll_width) * 0.5, top, scroll_width, scroll_height)
+	_scroll_rect = Rect2((view.x - scroll_width) * 0.5, (view.y - scroll_height) * 0.5, scroll_width, scroll_height)
 
-	# 卷轴周围的暗场：中间留出卷轴那一块，让地图只从纸窗里透出来。
+	# 展开时右侧还没露出来的部分压黑，地图只从卷轴纸窗里透出来。
 	_mask = Control.new()
 	_mask.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_mask.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_mask)
 
-	_add_dark(_mask, Rect2(0.0, 0.0, view.x, _scroll_rect.position.y))
-	_add_dark(_mask, Rect2(0.0, _scroll_rect.end.y, view.x, view.y - _scroll_rect.end.y))
-	_add_dark(_mask, Rect2(0.0, _scroll_rect.position.y, _scroll_rect.position.x, scroll_height))
-	_mask_right = _add_dark(_mask, Rect2(_scroll_rect.position.x, _scroll_rect.position.y, view.x - _scroll_rect.position.x, scroll_height))
+	_mask_right = _add_dark(_mask, Rect2(0.0, 0.0, view.x, view.y))
 
 	_clip = Control.new()
 	_clip.clip_contents = true
@@ -70,9 +67,9 @@ func _build(view: Vector2) -> void:
 
 	_title = Label.new()
 	_title.text = TITLE_TEXT
-	_title.add_theme_font_override("font", TITLE_FONT)
+	_title.add_theme_font_override("font", _title_font)
 	_title.add_theme_font_size_override("font_size", 96)
-	_title.add_theme_color_override("font_color", Color(0.93, 0.89, 0.8))
+	_title.add_theme_color_override("font_color", Color(0.97, 0.96, 0.93))
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title.position = Vector2(0.0, view.y * 0.34)
 	_title.size = Vector2(view.x, 140.0)
@@ -82,9 +79,9 @@ func _build(view: Vector2) -> void:
 
 	_subtitle = Label.new()
 	_subtitle.text = SUBTITLE_TEXT
-	_subtitle.add_theme_font_override("font", TITLE_FONT)
+	_subtitle.add_theme_font_override("font", _title_font)
 	_subtitle.add_theme_font_size_override("font_size", 34)
-	_subtitle.add_theme_color_override("font_color", Color(0.72, 0.68, 0.6))
+	_subtitle.add_theme_color_override("font_color", Color(0.86, 0.84, 0.79))
 	_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_subtitle.position = Vector2(0.0, view.y * 0.34 + 130.0)
 	_subtitle.size = Vector2(view.x, 50.0)
@@ -94,9 +91,9 @@ func _build(view: Vector2) -> void:
 
 	_hint = Label.new()
 	_hint.text = "点击 / 空格 跳过"
-	_hint.add_theme_font_override("font", TITLE_FONT)
+	_hint.add_theme_font_override("font", _title_font)
 	_hint.add_theme_font_size_override("font_size", 22)
-	_hint.add_theme_color_override("font_color", Color(0.75, 0.8, 0.82, 0.45))
+	_hint.add_theme_color_override("font_color", Color(0.8, 0.83, 0.85, 0.5))
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_hint.position = view - Vector2(300.0, 56.0)
 	_hint.size = Vector2(260.0, 36.0)
@@ -115,10 +112,11 @@ func _add_dark(parent: Control, rect: Rect2) -> ColorRect:
 
 
 func _process(_delta: float) -> void:
-	# 暗场的右沿跟着卷轴铺开的进度走，保证地图只从纸窗里露出来。
+	# 暗场的左沿跟着卷轴铺开的进度走，保证地图只从纸窗里露出来。
 	if _mask_right != null and _clip != null:
-		_mask_right.position.x = _scroll_rect.position.x + _clip.size.x
-		_mask_right.size.x = size.x - _mask_right.position.x
+		var edge := clampf(_scroll_rect.position.x + _clip.size.x, 0.0, size.x)
+		_mask_right.position.x = edge
+		_mask_right.size.x = maxf(0.0, size.x - edge)
 
 
 func _play() -> void:

@@ -1,13 +1,14 @@
 ﻿# AI 使用与素材声明（CREDITS）
 
 本文件同时作为比赛要求的《AI 使用与素材声明》，记录本仓库第三方素材、团队素材的来源与授权，以及 AI 工具的使用范围与人工修改情况。
-最后更新：2026-11-22（素材来源已由团队成员确认）
+最后更新：2026-11-23（新增 Noto Serif SC 宋体，素材来源已由团队成员确认）
 
 ## 一、第三方素材
 
 | 文件 | 作者 / 来源 | 许可证 | 署名与义务 | 用途 |
 |---|---|---|---|---|
-| `fonts/ZhiMangXing.ttf` | Zhi Mang Xing Project Authors，Google Fonts（<https://fonts.google.com/specimen/Zhi+Mang+Xing>） | SIL Open Font License 1.1，全文见 `fonts/OFL.txt` | 分发时随附 OFL 许可证与版权声明；字体本身不得单独售卖；衍生字体不得使用保留字体名 | 游戏内剧情字幕 |
+| `fonts/ZhiMangXing.ttf` | Zhi Mang Xing Project Authors，Google Fonts（<https://fonts.google.com/specimen/Zhi+Mang+Xing>） | SIL Open Font License 1.1，全文见 `fonts/OFL.txt` | 分发时随附 OFL 许可证与版权声明；字体本身不得单独售卖；衍生字体不得使用保留字体名 | 剧情字幕用（界面自 2026-11-23 起为宋体，字幕保留这个手写体） |
+| `fonts/NotoSerifSC-VF.ttf` | Noto Serif SC（思源宋体），Adobe / Google（<https://fonts.google.com/noto/specimen/Noto+Serif+SC>） | SIL Open Font License 1.1，全文见 `fonts/NotoSerifSC-OFL.txt` | 分发时随附 OFL 许可证与版权声明；字体本身不得单独售卖；衍生字体不得使用保留字体名 | 界面、剧情字幕、关卡标题的宋体（可变字体，按 400/500 字重取实例） |
 | `icon.svg` | Godot Engine logo，Copyright 2017 Andrea Calabró | CC BY 4.0（<https://github.com/godotengine/godot/blob/master/LOGO_LICENSE.md>） | 署名 "Godot Engine logo © 2017 Andrea Calabró, CC BY 4.0" | 项目图标（Godot 默认图标） |
 
 ## 二、引擎与第三方代码
@@ -46,13 +47,13 @@
   - 开发文档与运行截图；
   - 数值平衡的初版草案。
 - 人工完成的部分：需求定义、玩法取舍与验收、地图/海面等美术素材自绘、开场插画的最终自绘版本、数值与手感的实机调整、代码审阅与合并。
-- 未使用 AI 的内容：`fonts/ZhiMangXing.ttf`、`icon.svg`（第三方素材）、团队自绘素材（见第三节）。
+- 未使用 AI 的内容：`fonts/ZhiMangXing.ttf`、`fonts/NotoSerifSC-VF.ttf`、`icon.svg`（第三方素材）、团队自绘素材（见第三节）。
 
 ## 五、赛前已有内容申报
 
 - 代码与素材：本项目为本届比赛期间从零开发，未使用赛前完成的代码或美术素材。
 - 开发工具（赛前已有，非作品内容）：Godot Engine 4.7（开源引擎）、DeepSeek Harness 等 AI 辅助工具。
-- 第三方素材（赛前已有）：Zhi Mang Xing 字体、Godot 默认图标，授权见第一节。
+- 第三方素材（赛前已有）：Zhi Mang Xing 字体、Noto Serif SC（思源宋体）字体、Godot 默认图标，授权见第一节。
 
 ## 六、比赛要求对照
 
