@@ -25,6 +25,7 @@
 | `assets/The_Lands/sea_map.png` | 团队成员**自绘**（2026-11-22 确认） | 海面预览图，仅用于 `scenes/preview_sea.tscn`，未接入正式关卡 |
 | `assets/opening/*.png`、`opening/*.png` | 当前为 **DSH 生成**的临时版本（2026-11-22 确认） | 开场插画；计划替换为团队自绘版本，替换后更新本表 |
 | `assets/opening/scroll.png` | 团队成员提供（2026-11-23，源文件 `卷轴.psd`） | 开场动画的卷轴底图，白底已扣成透明 |
+| `assets/opening/scroll_frame.png` | 同上，由 `scroll.png` 加工 | 纸窗版卷轴：内部半透明，用于关卡开场时露出地图 |
 | `assets/占位素材/*.png` | 本项目自产（AI 编写脚本 + 程序化绘制） | 由 `tools/make_placeholder_art.py`（Pillow）绘制的占位图；`tower_base.png`、`tower_turret.png` 已随旧塔删除而不再使用 |
 | `docs/images/*.png` | 本项目自产 | 游戏运行截图 |
 | `vn/first_level.json` | 本项目自产 | 剧情脚本（当前为空文件，待填写） |

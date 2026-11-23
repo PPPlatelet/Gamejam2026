@@ -1,4 +1,4 @@
-# 雾海哨线（暂定名）· Gamejam2026
+﻿# 雾海哨线（暂定名）· Gamejam2026
 
 一个六边形格子上的海战塔防：左下角是基地，敌舰从上方和右侧的雾里出现，沿最短路径逐格逼近；你在格子上放下三种船，用减速、点杀和范围火力把她们拦在海上。
 
@@ -10,9 +10,9 @@
 
 1. 安装 Godot **4.7.2**（标准版即可，无需 .NET）。
 2. 克隆仓库后，用 Godot 导入根目录的 `project.godot`。
-3. 按 **F5** 运行，主场景是 `scenes/opening_scroll.tscn`。
+3. 按 **F5** 运行，主场景是 `scenes/opening.tscn`。
 
-启动流程：卷轴开场（`opening_scroll.tscn`，约 7 秒，点击/空格可跳过）→ 主菜单（`main_menu.tscn`）→ 游戏（`game.tscn`）。原来的四页插画开场保留在 `scenes/opening.tscn`，需要时可以把主场景改回去或串起来。
+启动流程：开场（`opening.tscn`）→ 主菜单（`main_menu.tscn`）→ 游戏（`game.tscn`）。进入关卡时会播卷轴展开动画（`scenes/level_intro.tscn`，约 4 秒，点击/空格可跳过）：卷轴从上往下展开，纸窗里露出地图，播完才开始计时。
 
 ## 操作说明
 
