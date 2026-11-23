@@ -407,8 +407,6 @@ func _try_build(cell: Vector2i, type := 0, from_base := false) -> bool:
 	unit.died.connect(_on_unit_died)
 	_unit_nodes[cell] = unit
 	_board_view.add_child(unit)
-	# 暂时不显示单位本体，只保留逻辑（攻击、血量、占格）。
-	unit.visible = false
 
 	if from_base:
 		# 新船从基地出发，滑到目标格；途中不开火、不转向。
