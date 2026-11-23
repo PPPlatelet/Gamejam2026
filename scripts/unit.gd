@@ -51,6 +51,8 @@ const STATS := {
 
 const PROJECTILE_SCENE := preload("res://scenes/entities/projectile.tscn")
 const SQUARE_SIZE := 0.92
+const STEP_TRAVEL_SPEED := 4.5   # 单位/秒，逐格移动的行进速度
+const STEP_PAUSE := 0.4          # 每走到一格停多久
 const BAR_WIDTH := 0.86
 const BAR_HEIGHT := 0.10
 const BAR_TOP := -0.64
@@ -63,6 +65,11 @@ var hp := 100.0
 
 var _cooldown := 0.0
 var _moving := false
+var _stepping := false
+var _step_points := PackedVector2Array()
+var _step_index := 0
+var _step_wait := 0.0
+var _step_speed := STEP_TRAVEL_SPEED
 var _held := false
 var _dead := false
 var _flash_time := 0.0
@@ -98,6 +105,9 @@ func _process(delta: float) -> void:
 			return
 	if _stun_time > 0.0:
 		_stun_time -= delta
+		return
+	if _stepping:
+		_advance_step(delta)
 		return
 	if _moving or _held:
 		return
@@ -193,8 +203,49 @@ func move_to(target_position: Vector2, duration: float) -> void:
 	tween.tween_callback(_on_move_finished)
 
 
+## 沿一串格子中心逐格移动：走一格 → 停 STEP_PAUSE 秒 → 走下一格。
+func move_through(points: PackedVector2Array, speed := STEP_TRAVEL_SPEED) -> void:
+	if points.is_empty():
+		return
+	_stepping = true
+	_moving = false
+	_step_points = points
+	_step_index = 0
+	_step_wait = 0.0
+	_step_speed = speed
+
+
+func _advance_step(delta: float) -> void:
+	if _step_wait > 0.0:
+		_step_wait -= delta
+		return
+	if _step_index >= _step_points.size():
+		_finish_step()
+		return
+	var target := _step_points[_step_index]
+	var to_target := target - position
+	var step := _step_speed * delta
+	if to_target.length() <= step:
+		position = target
+		_step_index += 1
+		if _step_index >= _step_points.size():
+			_finish_step()
+		else:
+			_step_wait = STEP_PAUSE
+	else:
+		position += to_target.normalized() * step
+
+
+func _finish_step() -> void:
+	_stepping = false
+	_step_points = PackedVector2Array()
+	_step_index = 0
+	_step_wait = 0.0
+	move_finished.emit()
+
+
 func is_moving() -> bool:
-	return _moving
+	return _moving or _stepping
 
 
 func _on_move_finished() -> void:

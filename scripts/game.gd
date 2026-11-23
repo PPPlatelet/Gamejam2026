@@ -401,6 +401,13 @@ func _try_build(cell: Vector2i, type := 0, from_base := false) -> bool:
 		return false
 
 	_supplies -= stats.cost
+	var route := PackedVector2Array()
+	if from_base:
+		for path_cell in board.find_path(board.base_cell, cell):
+			if path_cell != board.base_cell:
+				route.append(board.cell_center(path_cell))
+		if route.is_empty():
+			route.append(board.cell_center(cell))
 	board.block(cell, "unit")
 	var unit = UNIT_SCENE.instantiate()
 	unit.setup(type)
@@ -409,10 +416,9 @@ func _try_build(cell: Vector2i, type := 0, from_base := false) -> bool:
 	_board_view.add_child(unit)
 
 	if from_base:
-		# 新船从基地出发，滑到目标格；途中不开火、不转向。
+		# 新船从基地出发，逐格走到目标格；途中不开火、不转向。
 		unit.position = board.cell_center(board.base_cell)
-		var distance := board.hex_distance(board.base_cell, cell)
-		unit.move_to(board.cell_center(cell), clampf(0.30 * distance, 0.25, 2.5))
+		unit.move_through(route)
 		_show_move_marker(cell, unit)
 	else:
 		unit.position = board.cell_center(cell)
@@ -794,12 +800,18 @@ func _try_move_unit(from_cell: Vector2i, to_cell: Vector2i) -> bool:
 		return false
 
 	board.unblock(from_cell)
-	board.block(to_cell, "tower")
+	var route := board.find_path(from_cell, to_cell)
+	board.block(to_cell, "unit")
 	_unit_nodes.erase(from_cell)
 	_unit_nodes[to_cell] = tower
 
-	var duration := clampf(0.30 * distance, 0.25, 2.5)
-	tower.move_to(board.cell_center(to_cell), duration)
+	var points := PackedVector2Array()
+	for path_cell in route:
+		if path_cell != from_cell:
+			points.append(board.cell_center(path_cell))
+	if points.is_empty():
+		points.append(board.cell_center(to_cell))
+	tower.move_through(points)
 	_show_move_marker(to_cell, tower)
 
 	_command -= cost
