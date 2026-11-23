@@ -9,12 +9,11 @@ extends Node2D
 
 const HexBoardClass := preload("res://scripts/hex_board.gd")
 
+const HOVER_TEXTURE := preload("res://assets/ui/cell_marker.png")
 const LINE_COLOR := Color(0.78, 0.81, 0.85)
 const LINE_WIDTH := 0.035
 const BASE_FILL := Color(0.30, 0.58, 0.95, 0.25)
 const SPAWN_FILL := Color(1.00, 0.45, 0.30, 0.18)
-const HOVER_OK := Color(0.25, 0.75, 0.40, 0.35)
-const HOVER_BAD := Color(0.90, 0.25, 0.25, 0.35)
 const SELECT_FILL := Color(1.00, 0.82, 0.25, 0.30)
 const SELECT_LINE := Color(1.00, 0.72, 0.10, 0.95)
 const PATH_COLOR := Color(0.15, 0.45, 0.95, 0.30)
@@ -33,6 +32,7 @@ var show_numbers := false        # H 键切换：每格显示序号（行 × 列
 var preview_paths: Array = []   # Array[PackedVector2Array]
 
 var show_grid := false           # 拖塔时显示网格
+var show_veil := false           # 显示网格时是否再铺一层淡白（放置/拖动才铺）
 var drag_cell := Vector2i(-1, -1)          # 塔当前压住的格子（第二个图）
 var drag_target_cell := Vector2i(-1, -1)   # 松手后的目标格（第三个图）
 var drag_target_valid := true
@@ -42,7 +42,7 @@ func _draw() -> void:
 	if board == null:
 		return
 
-	if show_grid:
+	if show_grid and show_veil:
 		for row in board.rows:
 			for column in board.columns:
 				var grid_cell := Vector2i(column, row)
@@ -62,8 +62,6 @@ func _draw() -> void:
 				fill = SPAWN_FILL
 			if cell == selected_cell:
 				fill = SELECT_FILL
-			if cell == hover_cell:
-				fill = HOVER_OK if hover_valid else HOVER_BAD
 			if fill.a > 0.0:
 				draw_colored_polygon(board.cell_polygon(cell, 0.985), fill)
 
@@ -77,6 +75,14 @@ func _draw() -> void:
 				var closed := points.duplicate()
 				closed.append(points[0])
 				draw_polyline(closed, LINE_COLOR, LINE_WIDTH, true)
+
+	# 只在放置单位时出现：用户给的青色六边形描边，放到哪一格就画在哪一格。
+	if board.is_inside(hover_cell) and not board.is_removed(hover_cell):
+		var hover_center := board.cell_center(hover_cell)
+		var tint := Color.WHITE if hover_valid else Color(1.0, 0.4, 0.35)
+		var marker_size := Vector2(HexBoardClass.HEX_WIDTH, 2.0)
+		draw_texture_rect(HOVER_TEXTURE,
+			Rect2(hover_center - marker_size * 0.5, marker_size), false, tint)
 
 	if show_paths:
 		for path in preview_paths:

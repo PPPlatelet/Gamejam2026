@@ -1,7 +1,7 @@
 extends Control
 
-## 关卡开始动画：先出关卡名，然后卷轴从上往下展开，
-## 纸窗里一点点露出已经布好的地图；展开完再让卷轴和周围的暗场一起淡出。
+## 关卡开始动画：先出关卡名，然后横向卷轴从左往右铺开，
+## 纸窗里一点点露出已经布好的地图（带网格，方便认格子）；铺开完卷轴和暗场一起淡出。
 ##
 ## 由 game.gd 在开局时套一层 CanvasLayer 实例化，播完发 finished 信号；
 ## 播放期间游戏主循环不推进（game.gd 里的 _intro_playing），所以 15 分钟从 0 开始算。
@@ -10,20 +10,20 @@ extends Control
 signal finished
 
 const TITLE_FONT := preload("res://fonts/ZhiMangXing.ttf")
-const SCROLL_TEXTURE := preload("res://assets/opening/scroll_frame.png")
+const SCROLL_TEXTURE := preload("res://assets/opening/scroll_frame_wide.png")
 
 const TITLE_TEXT := "第一关"
 const SUBTITLE_TEXT := "雾海哨线 · 雾起"
-const SCROLL_ASPECT := 1022.0 / 1537.0
-const SCROLL_HEIGHT_RATIO := 0.9
+const SCROLL_ASPECT := 1537.0 / 1022.0
+const SCROLL_WIDTH_RATIO := 0.86
 
 var _mask: Control
-var _mask_bottom: ColorRect
+var _mask_right: ColorRect
 var _clip: Control
 var _title: Label
 var _subtitle: Label
 var _hint: Label
-var _scroll_height := 0.0
+var _scroll_width := 0.0
 var _scroll_rect := Rect2()
 var _finished := false
 
@@ -35,9 +35,9 @@ func _ready() -> void:
 
 
 func _build(view: Vector2) -> void:
-	var scroll_height := view.y * SCROLL_HEIGHT_RATIO
-	var scroll_width := scroll_height * SCROLL_ASPECT
-	_scroll_height = scroll_height
+	var scroll_width := view.x * SCROLL_WIDTH_RATIO
+	var scroll_height := scroll_width / SCROLL_ASPECT
+	_scroll_width = scroll_width
 	var top := (view.y - scroll_height) * 0.5
 	_scroll_rect = Rect2((view.x - scroll_width) * 0.5, top, scroll_width, scroll_height)
 
@@ -48,14 +48,14 @@ func _build(view: Vector2) -> void:
 	add_child(_mask)
 
 	_add_dark(_mask, Rect2(0.0, 0.0, view.x, _scroll_rect.position.y))
-	_add_dark(_mask, Rect2(0.0, _scroll_rect.position.y, _scroll_rect.position.x, view.y - _scroll_rect.position.y))
-	_add_dark(_mask, Rect2(_scroll_rect.end.x, _scroll_rect.position.y, view.x - _scroll_rect.end.x, view.y - _scroll_rect.position.y))
-	_mask_bottom = _add_dark(_mask, Rect2(0.0, _scroll_rect.position.y, view.x, view.y - _scroll_rect.position.y))
+	_add_dark(_mask, Rect2(0.0, _scroll_rect.end.y, view.x, view.y - _scroll_rect.end.y))
+	_add_dark(_mask, Rect2(0.0, _scroll_rect.position.y, _scroll_rect.position.x, scroll_height))
+	_mask_right = _add_dark(_mask, Rect2(_scroll_rect.position.x, _scroll_rect.position.y, view.x - _scroll_rect.position.x, scroll_height))
 
 	_clip = Control.new()
 	_clip.clip_contents = true
 	_clip.position = _scroll_rect.position
-	_clip.size = Vector2(scroll_width, 0.0)
+	_clip.size = Vector2(0.0, scroll_height)
 	_clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_clip)
 
@@ -115,10 +115,10 @@ func _add_dark(parent: Control, rect: Rect2) -> ColorRect:
 
 
 func _process(_delta: float) -> void:
-	# 暗场的下沿跟着卷轴展开走，保证地图只从纸窗里露出来。
-	if _mask_bottom != null and _clip != null:
-		_mask_bottom.position.y = _scroll_rect.position.y + _clip.size.y
-		_mask_bottom.size.y = size.y - _mask_bottom.position.y
+	# 暗场的右沿跟着卷轴铺开的进度走，保证地图只从纸窗里露出来。
+	if _mask_right != null and _clip != null:
+		_mask_right.position.x = _scroll_rect.position.x + _clip.size.x
+		_mask_right.size.x = size.x - _mask_right.position.x
 
 
 func _play() -> void:
@@ -126,10 +126,10 @@ func _play() -> void:
 	tween.tween_property(_title, "modulate:a", 1.0, 0.4)
 	tween.parallel().tween_property(_subtitle, "modulate:a", 1.0, 0.4)
 	tween.tween_interval(0.5)
-	# 关卡名先收掉，再让卷轴展开、纸窗露出地图。
+	# 关卡名先收掉，再让卷轴横向铺开、纸窗露出地图。
 	tween.tween_property(_title, "modulate:a", 0.0, 0.4)
 	tween.parallel().tween_property(_subtitle, "modulate:a", 0.0, 0.4)
-	tween.tween_property(_clip, "size:y", _scroll_height, 1.4) \
+	tween.tween_property(_clip, "size:x", _scroll_width, 1.5) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tween.tween_interval(0.6)
 	tween.tween_property(_mask, "modulate:a", 0.0, 0.5)

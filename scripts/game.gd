@@ -23,6 +23,7 @@ const STATS_PANEL_SCENE := preload("res://scenes/stats_panel.tscn")
 const HexBoardClass := preload("res://scripts/hex_board.gd")
 const StoryLines := preload("res://scripts/story_lines.gd")
 const SpawnWaves := preload("res://scripts/spawn_waves.gd")
+const LEVEL_INTRO_SCENE := preload("res://scenes/level_intro.tscn")
 const STORY_OVERLAY_SCENE := preload("res://scenes/story_overlay.tscn")
 
 @export_group("屏幕适配")
@@ -119,6 +120,7 @@ var _wave_fired := {}
 var _spawned_total := 0
 var _units_lost := 0
 var _elapsed := 0.0
+var _intro_playing := false
 
 
 func _ready() -> void:
@@ -145,12 +147,41 @@ func _ready() -> void:
 	_story_overlay = _story_overlay.get_node("Caption")
 	_toast("按住左边按钮放船；按 L 出怪")
 
+	# 关卡开始动画：卷轴展开露出地图，播完才开始计时。
+	_play_level_intro()
+
 	# 想让第一关一开局就自动播剧情，取消下面这行的注释即可：
 	# VN.open_file(VN_STORY_PATH)
 
 
+## 在游戏画面之上套一层关卡开场，播放期间不推进游戏。
+func _play_level_intro() -> void:
+	_intro_playing = true
+	# 进关先亮网格（不铺淡白），方便认格子；开场结束后再留两秒。
+	_board_view.show_grid = true
+	_board_view.show_veil = false
+	_board_view.queue_redraw()
+	$PlaceUI.visible = false
+	var layer := CanvasLayer.new()
+	layer.layer = 120
+	add_child(layer)
+	var intro = LEVEL_INTRO_SCENE.instantiate()
+	layer.add_child(intro)
+	intro.finished.connect(func() -> void:
+		_intro_playing = false
+		$PlaceUI.visible = true
+		layer.queue_free()
+		get_tree().create_timer(2.0).timeout.connect(_hide_start_grid)
+	)
+
+
+func _hide_start_grid() -> void:
+	_board_view.show_grid = false
+	_board_view.queue_redraw()
+
+
 func _process(delta: float) -> void:
-	if board == null or _is_over:
+	if board == null or _is_over or _intro_playing:
 		return
 
 	_command = minf(command_max, _command + command_per_second * delta)
@@ -175,6 +206,8 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _intro_playing:
+		return
 	if event is InputEventMouseMotion:
 		if _placing:
 			_update_ghost()
@@ -578,6 +611,7 @@ func _enter_place_mode(type: int) -> void:
 	# 必须在进树之后再关，否则会被 _process 自动开启。
 	_ghost_unit.set_process(false)
 	_board_view.show_grid = true
+	_board_view.show_veil = true
 
 	_active_place_button = _place_buttons.get(type)
 	if _active_place_button != null:
@@ -599,6 +633,7 @@ func _cancel_place_mode() -> void:
 		_ghost_unit.queue_free()
 	_ghost_unit = null
 	_board_view.show_grid = false
+	_board_view.show_veil = false
 	_board_view.hover_cell = Vector2i(-1, -1)
 	_board_view.drag_cell = Vector2i(-1, -1)
 	_board_view.drag_target_cell = Vector2i(-1, -1)
@@ -626,15 +661,10 @@ func _apply_ghost(mouse_local: Vector2) -> void:
 		_board_view.hover_cell = cell
 		var valid := _can_place(cell) and _supplies >= cost
 		_board_view.hover_valid = valid
-		_board_view.drag_cell = cell
-		_board_view.drag_target_cell = cell
-		_board_view.drag_target_valid = valid
 		_ghost_unit.modulate = Color(1.0, 0.55, 0.55, 0.65) if not valid else Color(1, 1, 1, 0.65)
 	else:
 		_ghost_unit.position = mouse_local
 		_board_view.hover_cell = Vector2i(-1, -1)
-		_board_view.drag_cell = Vector2i(-1, -1)
-		_board_view.drag_target_cell = Vector2i(-1, -1)
 	_board_view.queue_redraw()
 
 
@@ -691,6 +721,7 @@ func _start_drag() -> void:
 	_drag_tower.set_held(true)
 	_board_view.hover_cell = Vector2i(-1, -1)
 	_board_view.show_grid = true
+	_board_view.show_veil = true
 	_board_view.queue_redraw()
 
 
@@ -749,6 +780,7 @@ func _end_drag_visuals() -> void:
 	_drag_candidate_tower = null
 	_drag_candidate_cell = Vector2i(-1, -1)
 	_board_view.show_grid = false
+	_board_view.show_veil = false
 	_board_view.drag_cell = Vector2i(-1, -1)
 	_board_view.drag_target_cell = Vector2i(-1, -1)
 	_board_view.queue_redraw()
@@ -1145,12 +1177,10 @@ func _mouse_cell() -> Vector2i:
 
 
 func _update_hover() -> void:
-	var cell := _mouse_cell()
-	if cell == _board_view.hover_cell:
-		return
-	_board_view.hover_cell = cell
-	_board_view.hover_valid = _can_place(cell)
-	_board_view.queue_redraw()
+	# 没在放置单位时，鼠标不显示任何格子高亮。
+	if _board_view.hover_cell != Vector2i(-1, -1):
+		_board_view.hover_cell = Vector2i(-1, -1)
+		_board_view.queue_redraw()
 
 
 func _update_stats() -> void:
