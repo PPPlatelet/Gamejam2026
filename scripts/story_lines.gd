@@ -1,104 +1,218 @@
-## 游戏内穿插的剧情文案（剧本）。
+## 游戏内剧情 + 出兵剧本（合并版）。
 ##
-## 每条文案的结构：
-##   "id"      唯一名字，用来记录这条是否已经播过（改名字就会重新播一次）
-##   "when"    触发情况，见下面的说明
-##   "where"   出现位置："top"（顶部）/ "center"（屏幕中间）/ "bottom"（底部）/
-##             "left"（左上）/ "right"（右侧中间）
-##   "text"    文案内容，支持 \n 手动换行（字幕会自动按宽度折行）
-##   "seconds" 停留时间（秒），不写默认 5
-##   "once"    是否只播一次，默认 true；写成 false 会按 "cooldown" 秒间隔重复
+## 每条 = 一句台词 + 可选的出兵；when 条件满足时一起触发。
+## 同一个 when 的连续几条算一组对话，字幕层按顺序播；出兵写在组的第一条上。
 ##
-## when 支持的写法（挑一个用）：
-##   {"type": "start"}                      开局立刻
-##   {"type": "time", "seconds": 60}        开局 60 秒后
-##   {"type": "spawn", "count": 1}          累计按 L 出怪到 1 个
-##   {"type": "kills", "count": 5}          累计击杀到 5 个
-##   {"type": "reached", "count": 1}        敌人累计抵达基地 1 个
-##   {"type": "base_hp", "below": 10}       基地血量 ≤ 10
-##   {"type": "units", "count": 3}          场上船的数量 ≥ 3
-##   {"type": "supplies", "count": 100}     粮草 ≥ 100
-##   {"type": "unit_died", "count": 1}      累计被摧毁 1 艘船
-##   {"type": "game_over"}                  失败（会先弹失败页，慎用）
+## 字段：
+##   id       唯一名字，改名会重新播
+##   when     触发情况：time / start / kills / reached / base_hp / units / supplies / unit_died
+##   where    出现位置：top / center / bottom / left / right
+##   text     台词，30 字以内
+##   seconds  停留秒数，默认 5
+##   spawn    出兵（可选）：{"small": 2, "sword": 1, "charge": 1, "bomb": 1}
+##            small=倭寇小船、sword=倭刀船、charge=冲锋船、bomb=炸弹船；
+##            同一波逐个出，间隔 0.35 秒
+##   once     默认 true；写 false 时按 cooldown 秒重复
 ##
-## 改文案只需要改这个文件，不用动别的地方。
+## 手动测试出兵：L 随机出怪；按住 J 再按 1~4 出指定敌人。
 
 const LINES := [
+	# ---------------------------------------------------------------- 第一波：雾起
 	{
-		"id": "opening",
-		"when": {"type": "start"},
-		"where": "top",
-		"seconds": 6.0,
-		"text": "海图尽头的雾海里，只剩这一座基地还亮着灯。",
-	},
-	{
-		"id": "first_enemy",
-		"when": {"type": "spawn", "count": 1},
+		"id": "w1_1",
+		"when": {"type": "time", "seconds": 3.0},
 		"where": "bottom",
-		"seconds": 6.0,
-		"text": "第一艘敌舰从雾里探出头来——它们循着粮草的味道找过来了。",
+		"seconds": 4.0,
+		"spawn": {"small": 2},
+		"text": "旗官沈七：雾里有黑影，不是渔船。",
 	},
+	{
+		"id": "w1_2",
+		"when": {"type": "time", "seconds": 3.0},
+		"where": "bottom",
+		"seconds": 4.0,
+		"text": "哨船老周：哨船落了帆，灯压到最低。",
+	},
+	{
+		"id": "w1_3",
+		"when": {"type": "time", "seconds": 3.0},
+		"where": "bottom",
+		"seconds": 4.0,
+		"text": "火箭船阿满：鸟铳上火，铳口擦干了。",
+	},
+	{
+		"id": "w1_4",
+		"when": {"type": "time", "seconds": 3.0},
+		"where": "bottom",
+		"seconds": 4.0,
+		"text": "炮船陈九：佛郎机装药完毕，等旗令。",
+	},
+	{
+		"id": "w1_5",
+		"when": {"type": "time", "seconds": 3.0},
+		"where": "bottom",
+		"seconds": 4.0,
+		"text": "旗官沈七：放！",
+	},
+
+	# ---------------------------------------------------------------- 第二波：刀船
+	{
+		"id": "w2_1",
+		"when": {"type": "time", "seconds": 30.0},
+		"where": "bottom",
+		"seconds": 4.0,
+		"spawn": {"small": 3, "sword": 1},
+		"text": "哨船老周：敌船分了两路，刀船在前。",
+	},
+	{
+		"id": "w2_2",
+		"when": {"type": "time", "seconds": 30.0},
+		"where": "bottom",
+		"seconds": 4.0,
+		"text": "旗官沈七：刀船近身会缠人，别让它们贴上来。",
+	},
+	{
+		"id": "w2_3",
+		"when": {"type": "time", "seconds": 30.0},
+		"where": "bottom",
+		"seconds": 4.0,
+		"text": "火箭船阿满：火箭先点刀船。",
+	},
+	{
+		"id": "w2_4",
+		"when": {"type": "time", "seconds": 30.0},
+		"where": "bottom",
+		"seconds": 4.0,
+		"text": "炮船陈九：炮口转到左舷。",
+	},
+
+	# ---------------------------------------------------------------- 第三波：冲锋船
+	{
+		"id": "w3_1",
+		"when": {"type": "time", "seconds": 55.0},
+		"where": "bottom",
+		"seconds": 4.0,
+		"spawn": {"charge": 1, "small": 3},
+		"text": "哨船老周：中间那条船挂着号旗，在给敌船递令。",
+	},
+	{
+		"id": "w3_2",
+		"when": {"type": "time", "seconds": 55.0},
+		"where": "bottom",
+		"seconds": 4.0,
+		"text": "旗官沈七：那是冲锋船，先打它。",
+	},
+	{
+		"id": "w3_3",
+		"when": {"type": "time", "seconds": 55.0},
+		"where": "bottom",
+		"seconds": 4.0,
+		"text": "炮船陈九：炮位够不着，得往前挪。",
+	},
+	{
+		"id": "w3_4",
+		"when": {"type": "time", "seconds": 55.0},
+		"where": "bottom",
+		"seconds": 4.0,
+		"text": "火箭船阿满：我压着，你们动。",
+	},
+
+	# ---------------------------------------------------------------- 第四波：炸弹船
+	{
+		"id": "w4_1",
+		"when": {"type": "time", "seconds": 80.0},
+		"where": "bottom",
+		"seconds": 4.0,
+		"spawn": {"bomb": 2, "small": 2},
+		"text": "哨船老周：两条船不点灯，直直冲过来。",
+	},
+	{
+		"id": "w4_2",
+		"when": {"type": "time", "seconds": 80.0},
+		"where": "bottom",
+		"seconds": 4.0,
+		"text": "旗官沈七：是炸弹船，别让它靠上寨墙。",
+	},
+	{
+		"id": "w4_3",
+		"when": {"type": "time", "seconds": 80.0},
+		"where": "bottom",
+		"seconds": 4.0,
+		"text": "火箭船阿满：火箭拦一下！",
+	},
+	{
+		"id": "w4_4",
+		"when": {"type": "time", "seconds": 80.0},
+		"where": "bottom",
+		"seconds": 4.0,
+		"text": "炮船陈九：炸了就炸了，墙还撑得住。",
+	},
+
+	# ---------------------------------------------------------------- 第五波：总攻
+	{
+		"id": "w5_1",
+		"when": {"type": "time", "seconds": 110.0},
+		"where": "center",
+		"seconds": 4.5,
+		"spawn": {"sword": 2, "charge": 1, "bomb": 1},
+		"text": "哨船老周：雾散了，敌船全压上来。",
+	},
+	{
+		"id": "w5_2",
+		"when": {"type": "time", "seconds": 110.0},
+		"where": "center",
+		"seconds": 4.5,
+		"text": "旗官沈七：各船就位，这一波不退。",
+	},
+	{
+		"id": "w5_3",
+		"when": {"type": "time", "seconds": 110.0},
+		"where": "center",
+		"seconds": 4.5,
+		"text": "炮船陈九：火药还有两桶。",
+	},
+	{
+		"id": "w5_4",
+		"when": {"type": "time", "seconds": 110.0},
+		"where": "center",
+		"seconds": 4.5,
+		"text": "火箭船阿满：够打到最后一条。",
+	},
+
+	# ---------------------------------------------------------------- 事件台词（不跟着出兵）
 	{
 		"id": "first_kill",
 		"when": {"type": "kills", "count": 1},
 		"where": "bottom",
-		"seconds": 4.5,
-		"text": "敌舰炸成一团火球，沉进了黑水里。",
-	},
-	{
-		"id": "three_units",
-		"when": {"type": "units", "count": 3},
-		"where": "bottom",
-		"seconds": 5.0,
-		"text": "三艘船就位。哨船在前，火箭船居中，炮船压阵。",
-	},
-	{
-		"id": "kills_5",
-		"when": {"type": "kills", "count": 5},
-		"where": "bottom",
-		"seconds": 5.0,
-		"text": "五艘。海面安静下来，只有浪拍着船壳。",
+		"seconds": 4.0,
+		"text": "火箭船阿满：中了！火油烧起来了。",
 	},
 	{
 		"id": "lost_ship",
 		"when": {"type": "unit_died", "count": 1},
 		"where": "center",
-		"seconds": 5.5,
-		"text": "我们的船沉了。\n油污在浪里散开，很快又被雾吞掉。",
+		"seconds": 5.0,
+		"text": "哨船老周：哨船……断了缆。",
 	},
 	{
-		"id": "base_hp_low",
+		"id": "base_low",
 		"when": {"type": "base_hp", "below": 10},
 		"where": "top",
-		"seconds": 6.0,
-		"text": "基地的警报响个不停——防线快撑不住了。",
-	},
-	{
-		"id": "supplies_rich",
-		"when": {"type": "supplies", "count": 100},
-		"where": "left",
 		"seconds": 5.0,
-		"text": "粮草堆满了舱底。是时候把炮船推上去了。",
-	},
-	{
-		"id": "kills_15",
-		"when": {"type": "kills", "count": 15},
-		"where": "bottom",
-		"seconds": 5.0,
-		"text": "第十五艘。敌舰开始绕开哨船，贴着雾边摸过来。",
-	},
-	{
-		"id": "time_60",
-		"when": {"type": "time", "seconds": 60.0},
-		"where": "center",
-		"seconds": 6.0,
-		"text": "雾越来越浓。\n下一艘敌舰，不知道会从哪片浪里冒出来。",
+		"text": "旗官沈七：寨门裂了，狼烟升起来。",
 	},
 	{
 		"id": "reached_one",
 		"when": {"type": "reached", "count": 1},
 		"where": "top",
-		"seconds": 5.0,
-		"text": "有一艘敌舰撞上了基地。船壳在震，灯在晃。",
+		"seconds": 4.0,
+		"text": "哨船老周：有一艘撞上寨墙了，船壳在震。",
+	},
+	{
+		"id": "dawn",
+		"when": {"type": "time", "seconds": 150.0},
+		"where": "center",
+		"seconds": 6.0,
+		"text": "旁白：潮水退去，海面只剩碎木和浮油。",
 	},
 ]

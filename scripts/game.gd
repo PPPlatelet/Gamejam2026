@@ -910,6 +910,38 @@ func _check_story() -> void:
 				str(line.get("where", "bottom")),
 				float(line.get("seconds", 5.0))
 			)
+			var spawn_spec = line.get("spawn", {})
+			if spawn_spec is Dictionary and not spawn_spec.is_empty():
+				_spawn_from_script(spawn_spec)
+
+
+## 剧本里直接写出兵：{"small": 2, "sword": 1, "charge": 1, "bomb": 1}，
+## 同一波逐个出，间隔 0.35 秒，避免全堆在一个出生点上。
+func _spawn_from_script(spec: Dictionary) -> void:
+	var delay := 0.0
+	for key in spec:
+		var type := _enemy_type_by_name(str(key))
+		if type < 0:
+			continue
+		for i in int(spec[key]):
+			if delay <= 0.0:
+				_spawn_enemy(type)
+			else:
+				get_tree().create_timer(delay).timeout.connect(_spawn_enemy.bind(type))
+			delay += 0.35
+
+
+func _enemy_type_by_name(type_name: String) -> int:
+	match type_name:
+		"small", "倭寇小船":
+			return 0
+		"sword", "倭刀船":
+			return 1
+		"charge", "冲锋船":
+			return 2
+		"bomb", "炸弹船":
+			return 3
+	return -1
 
 
 func _story_condition(when: Dictionary) -> bool:
