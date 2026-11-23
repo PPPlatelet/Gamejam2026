@@ -10,9 +10,9 @@
 
 1. 安装 Godot **4.7.2**（标准版即可，无需 .NET）。
 2. 克隆仓库后，用 Godot 导入根目录的 `project.godot`。
-3. 按 **F5** 运行，主场景是 `scenes/opening.tscn`。
+3. 按 **F5** 运行，主场景是 `scenes/opening_scroll.tscn`。
 
-启动流程：开场（`opening.tscn`）→ 主菜单（`main_menu.tscn`）→ 游戏（`game.tscn`）。
+启动流程：卷轴开场（`opening_scroll.tscn`，约 7 秒，点击/空格可跳过）→ 主菜单（`main_menu.tscn`）→ 游戏（`game.tscn`）。原来的四页插画开场保留在 `scenes/opening.tscn`，需要时可以把主场景改回去或串起来。
 
 ## 操作说明
 
