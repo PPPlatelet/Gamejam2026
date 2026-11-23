@@ -1,4 +1,4 @@
-# AI 使用与素材声明（CREDITS）
+﻿# AI 使用与素材声明（CREDITS）
 
 本文件同时作为比赛要求的《AI 使用与素材声明》，记录本仓库第三方素材、团队素材的来源与授权，以及 AI 工具的使用范围与人工修改情况。
 最后更新：2026-11-22（素材来源已由团队成员确认）
@@ -28,6 +28,7 @@
 | `assets/opening/scroll_frame.png` | 同上，由 `scroll.png` 加工 | 纸窗版卷轴：内部半透明，用于关卡开场时露出地图 |
 | `assets/opening/scroll_frame_wide.png` | 同上，由 `scroll_frame.png` 旋转 90° | 横向卷轴纸窗素材（关卡开场从左往右铺开） |
 | `assets/ui/cell_marker.png` | 团队成员提供（2026-11-23） | 放置单位时的青色六边形描边 |
+| `assets/ui/ink_button.png` | 团队成员提供（2026-11-23，源文件 `水墨按键.psd`） | 左侧放船按钮的墨迹底图 |
 | `assets/占位素材/*.png` | 本项目自产（AI 编写脚本 + 程序化绘制） | 由 `tools/make_placeholder_art.py`（Pillow）绘制的占位图；`tower_base.png`、`tower_turret.png` 已随旧塔删除而不再使用 |
 | `docs/images/*.png` | 本项目自产 | 游戏运行截图 |
 | `vn/first_level.json` | 本项目自产 | 剧情脚本（当前为空文件，待填写） |

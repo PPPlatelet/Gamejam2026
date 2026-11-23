@@ -1,4 +1,4 @@
-﻿extends Node2D
+extends Node2D
 
 ## 六边形塔防 · 框架
 ##
@@ -24,6 +24,7 @@ const HexBoardClass := preload("res://scripts/hex_board.gd")
 const StoryLines := preload("res://scripts/story_lines.gd")
 const SpawnWaves := preload("res://scripts/spawn_waves.gd")
 const LEVEL_INTRO_SCENE := preload("res://scenes/level_intro.tscn")
+const INK_BUTTON_TEXTURE := preload("res://assets/ui/ink_button.png")
 const STORY_OVERLAY_SCENE := preload("res://scenes/story_overlay.tscn")
 
 @export_group("屏幕适配")
@@ -581,37 +582,36 @@ func _build_unit_buttons() -> void:
 		var color: Color = stats.color
 		var button := Button.new()
 		button.focus_mode = Control.FOCUS_NONE
-		button.custom_minimum_size = Vector2(210, 54)
+		button.custom_minimum_size = Vector2(240, 62)
 		button.text = "%s · %d粮草" % [stats.name, int(stats.cost)]
 		button.tooltip_text = "%s\n%s\n血量 %d · 花费 %d 粮草" % [
 			stats.name, stats.desc, int(stats.hp), int(stats.cost)
 		]
 		button.add_theme_font_override("font", font)
-		button.add_theme_font_size_override("font_size", 19)
-		button.add_theme_color_override("font_color", Color.WHITE)
-		button.add_theme_color_override("font_hover_color", Color.WHITE)
-		button.add_theme_color_override("font_pressed_color", Color(0.92, 0.94, 1.0))
-		button.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.65))
-		button.add_theme_stylebox_override("normal", _make_button_style(color))
-		button.add_theme_stylebox_override("hover", _make_button_style(color.lightened(0.12)))
-		button.add_theme_stylebox_override("pressed", _make_button_style(color.darkened(0.15)))
-		button.add_theme_stylebox_override("disabled", _make_button_style(Color(0.62, 0.66, 0.72, 0.55)))
+		button.add_theme_font_size_override("font_size", 21)
+		button.add_theme_color_override("font_color", color.lightened(0.55))
+		button.add_theme_color_override("font_hover_color", Color(1, 1, 1))
+		button.add_theme_color_override("font_pressed_color", Color(0.9, 0.92, 0.95))
+		button.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.4))
+		button.add_theme_stylebox_override("normal", _ink_button_style(Color(1, 1, 1, 1)))
+		button.add_theme_stylebox_override("hover", _ink_button_style(Color(1.25, 1.25, 1.25, 1)))
+		button.add_theme_stylebox_override("pressed", _ink_button_style(Color(0.75, 0.75, 0.75, 1)))
+		button.add_theme_stylebox_override("disabled", _ink_button_style(Color(0.55, 0.55, 0.55, 0.45)))
 		button.button_down.connect(_on_unit_button_down.bind(type))
 		button.pressed.connect(_on_unit_button_pressed.bind(type))
 		_place_buttons_box.add_child(button)
 		_place_buttons[type] = button
 
 
-func _make_button_style(color: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = color
-	style.corner_radius_top_left = 14
-	style.corner_radius_top_right = 14
-	style.corner_radius_bottom_right = 14
-	style.corner_radius_bottom_left = 14
-	style.shadow_color = Color(0.06, 0.18, 0.55, 0.28)
-	style.shadow_size = 8
-	style.shadow_offset = Vector2(0, 3)
+## 用用户给的墨迹图当按钮底：整张拉伸，文字压在墨迹上。
+func _ink_button_style(tint: Color) -> StyleBoxTexture:
+	var style := StyleBoxTexture.new()
+	style.texture = INK_BUTTON_TEXTURE
+	style.modulate_color = tint
+	style.content_margin_left = 30.0
+	style.content_margin_right = 30.0
+	style.content_margin_top = 6.0
+	style.content_margin_bottom = 6.0
 	return style
 
 
