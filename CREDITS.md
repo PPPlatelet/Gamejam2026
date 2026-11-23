@@ -7,7 +7,7 @@
 
 | 文件 | 作者 / 来源 | 许可证 | 署名与义务 | 用途 |
 |---|---|---|---|---|
-| `fonts/ZhiMangXing.ttf` | Zhi Mang Xing Project Authors，Google Fonts（<https://fonts.google.com/specimen/Zhi+Mang+Xing>） | SIL Open Font License 1.1，全文见 `fonts/OFL.txt` | 分发时随附 OFL 许可证与版权声明；字体本身不得单独售卖；衍生字体不得使用保留字体名 | 早期剧情字幕用；2026-11-23 起界面改用宋体（Noto Serif SC），文件保留未用 |
+| `fonts/ZhiMangXing.ttf` | Zhi Mang Xing Project Authors，Google Fonts（<https://fonts.google.com/specimen/Zhi+Mang+Xing>） | SIL Open Font License 1.1，全文见 `fonts/OFL.txt` | 分发时随附 OFL 许可证与版权声明；字体本身不得单独售卖；衍生字体不得使用保留字体名 | 剧情字幕用（界面自 2026-11-23 起为宋体，字幕保留这个手写体） |
 | `fonts/NotoSerifSC-VF.ttf` | Noto Serif SC（思源宋体），Adobe / Google（<https://fonts.google.com/noto/specimen/Noto+Serif+SC>） | SIL Open Font License 1.1，全文见 `fonts/NotoSerifSC-OFL.txt` | 分发时随附 OFL 许可证与版权声明；字体本身不得单独售卖；衍生字体不得使用保留字体名 | 界面、剧情字幕、关卡标题的宋体（可变字体，按 400/500 字重取实例） |
 | `icon.svg` | Godot Engine logo，Copyright 2017 Andrea Calabró | CC BY 4.0（<https://github.com/godotengine/godot/blob/master/LOGO_LICENSE.md>） | 署名 "Godot Engine logo © 2017 Andrea Calabró, CC BY 4.0" | 项目图标（Godot 默认图标） |
 

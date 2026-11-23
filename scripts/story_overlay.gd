@@ -1,9 +1,10 @@
 ## 屏幕上的剧情字幕：一次显示一条，自动淡入淡出；多条触发时排队依次播。
-## 不用底色，黑字直接压在画面上，字体是 Noto Serif SC（宋体）。
+## 不用底色，黑字直接压在画面上，字体沿用 fonts/ZhiMangXing.ttf。
 ## 位置、"出现在哪"由剧本里每条的 "where" 决定：top / center / bottom / left / right。
 
 extends Control
 
+const CAPTION_FONT := preload("res://fonts/ZhiMangXing.ttf")
 const FONT_SIZE := 30
 const LINE_GAP := 8.0
 const PAD_X := 24.0
@@ -12,7 +13,7 @@ const FADE_IN := 0.3
 const FADE_OUT := 0.6
 const TEXT_COLOR := Color(0.05, 0.05, 0.05)
 
-var _font: Font = SongFont.make(400.0)
+var _font: Font = CAPTION_FONT
 var _queue: Array = []
 var _text := ""
 var _where := "bottom"

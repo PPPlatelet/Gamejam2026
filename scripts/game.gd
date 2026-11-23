@@ -578,13 +578,13 @@ func _build_unit_buttons() -> void:
 		var stats: Dictionary = UnitClass.STATS[type]
 		var button := Button.new()
 		button.focus_mode = Control.FOCUS_NONE
-		button.custom_minimum_size = Vector2(240, 62)
+		button.custom_minimum_size = Vector2(200, 50)
 		button.text = "%s · %d粮草" % [stats.name, int(stats.cost)]
 		button.tooltip_text = "%s\n%s\n血量 %d · 花费 %d 粮草" % [
 			stats.name, stats.desc, int(stats.hp), int(stats.cost)
 		]
 		button.add_theme_font_override("font", font)
-		button.add_theme_font_size_override("font_size", 21)
+		button.add_theme_font_size_override("font_size", 18)
 		button.add_theme_color_override("font_color", Color(0.96, 0.95, 0.92))
 		button.add_theme_color_override("font_hover_color", Color(1, 1, 1))
 		button.add_theme_color_override("font_pressed_color", Color(0.85, 0.86, 0.88))
@@ -604,10 +604,10 @@ func _ink_button_style(tint: Color) -> StyleBoxTexture:
 	var style := StyleBoxTexture.new()
 	style.texture = INK_BUTTON_TEXTURE
 	style.modulate_color = tint
-	style.content_margin_left = 30.0
-	style.content_margin_right = 30.0
-	style.content_margin_top = 6.0
-	style.content_margin_bottom = 6.0
+	style.content_margin_left = 24.0
+	style.content_margin_right = 24.0
+	style.content_margin_top = 5.0
+	style.content_margin_bottom = 5.0
 	return style
 
 

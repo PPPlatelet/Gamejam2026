@@ -1,4 +1,4 @@
-﻿extends Control
+extends Control
 
 ## 关卡开始动画：先出关卡名，然后横向卷轴从左往右铺开，
 ## 纸窗里一点点露出已经布好的地图（带网格，方便认格子）；铺开完卷轴和暗场一起淡出。
@@ -14,8 +14,7 @@ const SCROLL_TEXTURE := preload("res://assets/opening/scroll_frame_wide.png")
 
 const TITLE_TEXT := "第一关"
 const SUBTITLE_TEXT := "雾海哨线 · 雾起"
-const SCROLL_ASPECT := 1537.0 / 1022.0
-const SCROLL_WIDTH_RATIO := 0.86
+const SCROLL_TEXTURE_SIZE := Vector2(1537.0, 1022.0)
 
 var _mask: Control
 var _mask_right: ColorRect
@@ -35,22 +34,20 @@ func _ready() -> void:
 
 
 func _build(view: Vector2) -> void:
-	var scroll_width := view.x * SCROLL_WIDTH_RATIO
-	var scroll_height := scroll_width / SCROLL_ASPECT
+	# 卷轴按“铺满全屏”缩放：纸窗覆盖整屏，卷轴框贴着屏幕边，不再浮在中间。
+	var fit_scale := maxf(view.x / SCROLL_TEXTURE_SIZE.x, view.y / SCROLL_TEXTURE_SIZE.y)
+	var scroll_width := SCROLL_TEXTURE_SIZE.x * fit_scale
+	var scroll_height := SCROLL_TEXTURE_SIZE.y * fit_scale
 	_scroll_width = scroll_width
-	var top := (view.y - scroll_height) * 0.5
-	_scroll_rect = Rect2((view.x - scroll_width) * 0.5, top, scroll_width, scroll_height)
+	_scroll_rect = Rect2((view.x - scroll_width) * 0.5, (view.y - scroll_height) * 0.5, scroll_width, scroll_height)
 
-	# 卷轴周围的暗场：中间留出卷轴那一块，让地图只从纸窗里透出来。
+	# 展开时右侧还没露出来的部分压黑，地图只从卷轴纸窗里透出来。
 	_mask = Control.new()
 	_mask.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_mask.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_mask)
 
-	_add_dark(_mask, Rect2(0.0, 0.0, view.x, _scroll_rect.position.y))
-	_add_dark(_mask, Rect2(0.0, _scroll_rect.end.y, view.x, view.y - _scroll_rect.end.y))
-	_add_dark(_mask, Rect2(0.0, _scroll_rect.position.y, _scroll_rect.position.x, scroll_height))
-	_mask_right = _add_dark(_mask, Rect2(_scroll_rect.position.x, _scroll_rect.position.y, view.x - _scroll_rect.position.x, scroll_height))
+	_mask_right = _add_dark(_mask, Rect2(0.0, 0.0, view.x, view.y))
 
 	_clip = Control.new()
 	_clip.clip_contents = true
@@ -115,10 +112,11 @@ func _add_dark(parent: Control, rect: Rect2) -> ColorRect:
 
 
 func _process(_delta: float) -> void:
-	# 暗场的右沿跟着卷轴铺开的进度走，保证地图只从纸窗里露出来。
+	# 暗场的左沿跟着卷轴铺开的进度走，保证地图只从纸窗里露出来。
 	if _mask_right != null and _clip != null:
-		_mask_right.position.x = _scroll_rect.position.x + _clip.size.x
-		_mask_right.size.x = size.x - _mask_right.position.x
+		var edge := clampf(_scroll_rect.position.x + _clip.size.x, 0.0, size.x)
+		_mask_right.position.x = edge
+		_mask_right.size.x = maxf(0.0, size.x - edge)
 
 
 func _play() -> void:

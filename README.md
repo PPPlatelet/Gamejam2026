@@ -42,7 +42,7 @@
 - **字幕位置**：每条台词可以用 `where` 选预设位置（顶部 / 中间 / 底部 / 左上 / 右侧），也可以用 `at: [x, y]`（屏幕比例 0~1）精确摆放。
 - **放置提示**：只有在放置单位时才会出现格子高亮——目标格用青色六边形描边（`assets/ui/cell_marker.png`），不能放时描边变红；平时鼠标不显示任何格子。
 - **放船按钮**：左侧三个按钮用水墨按键图（`assets/ui/ink_button.png`）做底，文字为白色宋体。
-- **字体**：全局 UI 用 Noto Serif SC（思源宋体，OFL 1.1，`fonts/NotoSerifSC-VF.ttf`），字幕黑字、按钮与关卡标题白字。
+- **字体**：全局 UI 用 Noto Serif SC（思源宋体，OFL 1.1，`fonts/NotoSerifSC-VF.ttf`）；剧情字幕保留原来的手写体（`fonts/ZhiMangXing.ttf`），黑字；按钮与关卡标题白字。
 - **敌人**：分四种——
   - **倭寇小船**：40 血、1 格/秒，普通的近战杂兵；
   - **倭刀船**：移动快（1.5 格/秒），近战命中会**眩晕**我方单位并附加持续伤害；
@@ -90,7 +90,7 @@ godot --headless --export-release "Windows Desktop" "build/Gamejam2026.exe"
 ```
 assets/          地图底图、开场插画、占位素材
 docs/            开发说明、截图、开发者日志
-fonts/           宋体（Noto Serif SC，OFL 1.1）与旧的 ZhiMangXing
+fonts/           字体：Noto Serif SC（界面）与 ZhiMangXing（字幕）
 opening/         开场插画
 scenes/          场景（游戏、棋盘、实体、菜单、VN、字幕层）
 scripts/         玩法脚本（棋盘、单位、敌人、游戏流程、剧情数据）
