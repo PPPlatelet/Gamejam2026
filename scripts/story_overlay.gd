@@ -23,6 +23,7 @@ var _active := false
 var _lines := PackedStringArray()
 var _box_size := Vector2.ZERO
 var _line_height := 30.0
+var _at := Vector2(-1, -1)
 
 
 func _ready() -> void:
@@ -30,8 +31,9 @@ func _ready() -> void:
 	modulate.a = 0.0
 
 
-func show_line(text: String, where: String, seconds: float) -> void:
-	_queue.append({"text": text, "where": where, "seconds": seconds})
+## where 用预设位置；at 是自定义位置（屏幕比例 0~1，字幕框中心对准这个点）。
+func show_line(text: String, where: String, seconds: float, at := Vector2(-1, -1)) -> void:
+	_queue.append({"text": text, "where": where, "seconds": seconds, "at": at})
 	if not _active:
 		_next()
 
@@ -47,6 +49,7 @@ func _next() -> void:
 	var item: Dictionary = _queue.pop_front()
 	_text = str(item.get("text", ""))
 	_where = str(item.get("where", "bottom"))
+	_at = item.get("at", Vector2(-1, -1))
 	_duration = maxf(1.0, float(item.get("seconds", 5.0)))
 	_elapsed = 0.0
 	_active = true
@@ -57,6 +60,8 @@ func _next() -> void:
 
 func _rebuild() -> void:
 	var max_width := 980.0 if _where == "top" or _where == "bottom" else 640.0
+	if _at.x >= 0.0:
+		max_width = 640.0
 	_lines = _wrap(_text, max_width)
 	_line_height = _font.get_height(FONT_SIZE) + LINE_GAP
 	var widest := 0.0
@@ -111,6 +116,8 @@ func _draw() -> void:
 
 
 func _box_position(view: Vector2) -> Vector2:
+	if _at.x >= 0.0 and _at.y >= 0.0:
+		return Vector2(view.x * _at.x, view.y * _at.y) - _box_size * 0.5
 	match _where:
 		"top":
 			return Vector2((view.x - _box_size.x) * 0.5, view.y * 0.075)

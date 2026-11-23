@@ -1,4 +1,4 @@
-﻿extends Node2D
+extends Node2D
 
 ## 六边形塔防 · 框架
 ##
@@ -22,6 +22,7 @@ const STATS_PANEL_SCENE := preload("res://scenes/stats_panel.tscn")
 
 const HexBoardClass := preload("res://scripts/hex_board.gd")
 const StoryLines := preload("res://scripts/story_lines.gd")
+const SpawnWaves := preload("res://scripts/spawn_waves.gd")
 const STORY_OVERLAY_SCENE := preload("res://scenes/story_overlay.tscn")
 
 @export_group("屏幕适配")
@@ -48,6 +49,8 @@ const STORY_OVERLAY_SCENE := preload("res://scenes/story_overlay.tscn")
 @export var match_seconds := 900.0
 ## 剧本出兵数量倍率：调难度用，1.0 就是剧本原样。
 @export var wave_scale := 1.0
+## 敌人统一从这个格子出生（列, 行，从 0 开始）。棋盘上被删掉/挡住时会自动就近找一个。
+@export var spawn_cell := Vector2i(17, 3)
 
 @export_group("格子")
 ## 直接删掉的格子编号区间，编号沿用旧的「行 × 列数 + 列 + 1」行优先编号。
@@ -112,6 +115,7 @@ var _rng := RandomNumberGenerator.new()
 var _spawn_paths: Array = []
 var _story_overlay
 var _story_fired := {}
+var _wave_fired := {}
 var _spawned_total := 0
 var _units_lost := 0
 var _elapsed := 0.0
@@ -125,7 +129,7 @@ func _ready() -> void:
 	_build_board()
 	_remove_cells()
 	_restore_cells()
-	_relocate_spawns()
+	_resolve_spawn_cell()
 	_board_view.board = board
 	_fit_board()
 	_add_base_marker()
@@ -153,6 +157,7 @@ func _process(delta: float) -> void:
 	_supplies = minf(supplies_max, _supplies + delta / maxf(supplies_seconds, 0.01))
 	_elapsed += delta
 	_check_story()
+	_check_waves()
 	if _elapsed >= match_seconds and not _is_over:
 		_win()
 	_refresh_panel()
@@ -271,19 +276,37 @@ func _build_board() -> void:
 
 	board = HexBoardClass.new(columns, rows)
 	board.base_cell = Vector2i(0, rows - 1)
-
-	# 上边三个出生点 + 右边三个出生点
-	for i in 3:
-		var column := roundi((columns - 1) * (0.25 + 0.25 * i))
-		_add_spawn(Vector2i(column, 0))
-	for i in 3:
-		var row := roundi((rows - 1) * (0.25 + 0.25 * i))
-		_add_spawn(Vector2i(columns - 1, row))
+	board.spawn_cells = []
 
 
-func _add_spawn(cell: Vector2i) -> void:
-	if board.is_inside(cell) and cell != board.base_cell and not board.spawn_cells.has(cell):
-		board.spawn_cells.append(cell)
+## 所有敌人从这一个格子出生；如果它被删掉/挡住，就就近找可用格。
+func _resolve_spawn_cell() -> void:
+	if _is_spawnable(spawn_cell):
+		board.spawn_cells = [spawn_cell]
+		return
+	for radius in range(1, 10):
+		for row in range(spawn_cell.y - radius, spawn_cell.y + radius + 1):
+			for column in range(spawn_cell.x - radius, spawn_cell.x + radius + 1):
+				var cell := Vector2i(column, row)
+				if _is_spawnable(cell):
+					board.spawn_cells = [cell]
+					return
+	for row in board.rows:
+		for column in board.columns:
+			var cell := Vector2i(column, row)
+			if _is_spawnable(cell):
+				board.spawn_cells = [cell]
+				return
+
+
+func _is_spawnable(cell: Vector2i) -> bool:
+	if not board.is_inside(cell):
+		return false
+	if cell == board.base_cell:
+		return false
+	if board.is_removed(cell) or board.is_blocked(cell):
+		return false
+	return not board.find_path(cell, board.base_cell).is_empty()
 
 
 func _play_area() -> Rect2:
@@ -356,31 +379,6 @@ func _remove_cells() -> void:
 func _restore_cells() -> void:
 	for cell in restored_cells:
 		board.restore_cell(cell)
-
-
-## 出生点如果正好被删掉，就沿该列往下 / 该行往左找最近的可用格。
-func _relocate_spawns() -> void:
-	var fixed: Array[Vector2i] = []
-	for spawn in board.spawn_cells:
-		if not board.is_removed(spawn):
-			fixed.append(spawn)
-			continue
-		var replacement := _nearest_open_cell(spawn)
-		if replacement != Vector2i(-1, -1) and not fixed.has(replacement):
-			fixed.append(replacement)
-	board.spawn_cells = fixed
-
-
-func _nearest_open_cell(from: Vector2i) -> Vector2i:
-	for step in board.rows:
-		var down := Vector2i(from.x, from.y + step)
-		if board.is_inside(down) and not board.is_removed(down) and down != board.base_cell:
-			return down
-	for step in board.columns:
-		var left := Vector2i(from.x - step, from.y)
-		if board.is_inside(left) and not board.is_removed(left) and left != board.base_cell:
-			return left
-	return Vector2i(-1, -1)
 
 
 func _try_build(cell: Vector2i, type := 0, from_base := false) -> bool:
@@ -911,14 +909,29 @@ func _check_story() -> void:
 				continue
 		if _story_condition(line.get("when", {})):
 			_story_fired[id] = _elapsed
+			var at = line.get("at", null)
+			var at_pos := Vector2(-1, -1)
+			if at is Array and at.size() >= 2:
+				at_pos = Vector2(float(at[0]), float(at[1]))
 			_story_overlay.show_line(
 				str(line.get("text", "")),
 				str(line.get("where", "bottom")),
-				float(line.get("seconds", 5.0))
+				float(line.get("seconds", 5.0)),
+				at_pos
 			)
-			var spawn_spec = line.get("spawn", {})
-			if spawn_spec is Dictionary and not spawn_spec.is_empty():
-				_spawn_from_script(spawn_spec)
+
+
+## 出兵时间表：和字幕完全独立，到点就在指定的出生格出怪。
+func _check_waves() -> void:
+	for index in SpawnWaves.WAVES.size():
+		if _wave_fired.has(index):
+			continue
+		var wave: Dictionary = SpawnWaves.WAVES[index]
+		if _elapsed >= float(wave.get("time", 0.0)):
+			_wave_fired[index] = true
+			var spec = wave.get("spawn", {})
+			if spec is Dictionary and not spec.is_empty():
+				_spawn_from_script(spec)
 
 
 ## 剧本里直接写出兵：{"small": 2, "sword": 1, "charge": 1, "bomb": 1}，
@@ -985,7 +998,7 @@ func _spawn_enemy(type := -1) -> void:
 		return
 	if type < 0:
 		type = _random_enemy_type()
-	var spawn: Vector2i = board.spawn_cells[_rng.randi_range(0, board.spawn_cells.size() - 1)]
+	var spawn: Vector2i = board.spawn_cells[0]
 	var waypoint := Vector2i(-1, -1)
 	if _rng.randf() < 0.45:
 		waypoint = _pick_waypoint(spawn)

@@ -1,21 +1,17 @@
-﻿## 游戏内剧情 + 出兵剧本（合并版，15 分钟一局）。
+## 游戏内剧情字幕剧本（和出兵分开，15 分钟一局）。
 ##
-## 每条 = 一句台词 + 可选的出兵；when 条件满足时一起触发。
-## 同一个 when 的连续几条算一组对话，字幕层按顺序播；出兵写在组的第一条上。
+## 每条 = 一句台词；when 条件满足时触发，同一 when 的连续几条按顺序排队播。
+## 出兵不在这里，在 spawn_waves.gd；两边可以各改各的，互不影响。
 ##
 ## 字段：
 ##   id       唯一名字，改名会重新播
 ##   when     触发情况：time / start / kills / reached / base_hp / units / supplies / unit_died
-##   where    出现位置：top / center / bottom / left / right
+##   where    预设位置：top / center / bottom / left / right
+##   at       自定义位置（可选）：[x, y]，屏幕比例 0~1，字幕框中心对准这个点
+##            例："at": [0.5, 0.8] 就是画面中间偏下；写了 at 就不看 where
 ##   text     台词，30 字以内
 ##   seconds  停留秒数，默认 5
-##   spawn    出兵（可选）：{"small": 2, "sword": 1, "charge": 1, "bomb": 1}
-##            small=倭寇小船、sword=倭刀船、charge=冲锋船、bomb=炸弹船；
-##            同一波逐个出，间隔 0.35 秒
 ##   once     默认 true；写 false 时按 cooldown 秒重复
-##
-## 15 分钟流程：前 5 分钟试探与刀船，5~10 分钟冲锋船与炸弹船，
-## 10 分钟后三面总攻，14:50 收尾，15:00 判胜利（base 还在）。
 ##
 ## 手动测试出兵：L 随机出怪；按住 J 再按 1~4 出指定敌人。
 
@@ -26,7 +22,6 @@ const LINES := [
 		"when": {"type": "time", "seconds": 10.0},
 		"where": "bottom",
 		"seconds": 4.0,
-		"spawn": {"small": 4},
 		"text": "旗官沈七：雾里有黑影，不是渔船。",
 	},
 	{
@@ -64,7 +59,6 @@ const LINES := [
 		"when": {"type": "time", "seconds": 70.0},
 		"where": "bottom",
 		"seconds": 4.0,
-		"spawn": {"small": 4},
 		"text": "哨船老周：第二拨，还是小船。",
 	},
 	{
@@ -88,7 +82,6 @@ const LINES := [
 		"when": {"type": "time", "seconds": 140.0},
 		"where": "bottom",
 		"seconds": 4.0,
-		"spawn": {"small": 4, "sword": 2},
 		"text": "哨船老周：刀船混在小船里。",
 	},
 	{
@@ -119,7 +112,6 @@ const LINES := [
 		"when": {"type": "time", "seconds": 210.0},
 		"where": "bottom",
 		"seconds": 4.0,
-		"spawn": {"small": 6, "sword": 2},
 		"text": "哨船老周：它们贴着浅滩走，想绕开哨船。",
 	},
 	{
@@ -143,7 +135,6 @@ const LINES := [
 		"when": {"type": "time", "seconds": 280.0},
 		"where": "bottom",
 		"seconds": 4.0,
-		"spawn": {"small": 4, "sword": 3},
 		"text": "哨船老周：刀船又多了两艘。",
 	},
 	{
@@ -167,7 +158,6 @@ const LINES := [
 		"when": {"type": "time", "seconds": 350.0},
 		"where": "bottom",
 		"seconds": 4.0,
-		"spawn": {"small": 4, "sword": 3, "charge": 2},
 		"text": "哨船老周：中间那条挂着号旗，在给敌船递令。",
 	},
 	{
@@ -198,7 +188,6 @@ const LINES := [
 		"when": {"type": "time", "seconds": 420.0},
 		"where": "bottom",
 		"seconds": 4.0,
-		"spawn": {"small": 6, "sword": 3, "charge": 2},
 		"text": "哨船老周：号旗倒了，敌船慢下来了。",
 	},
 	{
@@ -222,7 +211,6 @@ const LINES := [
 		"when": {"type": "time", "seconds": 490.0},
 		"where": "bottom",
 		"seconds": 4.0,
-		"spawn": {"small": 6, "sword": 3, "bomb": 2},
 		"text": "哨船老周：两条船不点灯，直直冲过来。",
 	},
 	{
@@ -253,7 +241,6 @@ const LINES := [
 		"when": {"type": "time", "seconds": 560.0},
 		"where": "bottom",
 		"seconds": 4.0,
-		"spawn": {"small": 7, "sword": 4, "bomb": 2},
 		"text": "哨船老周：寨墙外水浅，它们只能排成一列。",
 	},
 	{
@@ -277,7 +264,6 @@ const LINES := [
 		"when": {"type": "time", "seconds": 630.0},
 		"where": "bottom",
 		"seconds": 4.0,
-		"spawn": {"small": 7, "sword": 4, "charge": 2, "bomb": 2},
 		"text": "哨船老周：雾又厚了，看不清船数。",
 	},
 	{
@@ -308,7 +294,6 @@ const LINES := [
 		"when": {"type": "time", "seconds": 710.0},
 		"where": "center",
 		"seconds": 4.5,
-		"spawn": {"small": 7, "sword": 4, "bomb": 3},
 		"text": "哨船老周：敌船全压上来了，号旗一面接一面。",
 	},
 	{
@@ -339,7 +324,6 @@ const LINES := [
 		"when": {"type": "time", "seconds": 790.0},
 		"where": "center",
 		"seconds": 4.5,
-		"spawn": {"small": 7, "sword": 4, "charge": 2, "bomb": 2},
 		"text": "哨船老周：三面都是船影。",
 	},
 	{
@@ -370,7 +354,6 @@ const LINES := [
 		"when": {"type": "time", "seconds": 860.0},
 		"where": "center",
 		"seconds": 4.5,
-		"spawn": {"small": 8, "sword": 6, "charge": 2, "bomb": 3},
 		"text": "哨船老周：最后一批，全是大家伙。",
 	},
 	{
@@ -393,6 +376,7 @@ const LINES := [
 		"id": "finale_1",
 		"when": {"type": "time", "seconds": 890.0},
 		"where": "center",
+		"at": [0.5, 0.82],
 		"seconds": 5.0,
 		"text": "旁白：潮水退去，海面只剩碎木和浮油。",
 	},
