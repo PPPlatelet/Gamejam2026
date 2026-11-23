@@ -28,6 +28,10 @@ func _initialize() -> void:
 		quit(1)
 		return
 
+	# 自检在独立目录写入继续点，保留玩家的存档。
+	vn.storage.directory = OS.get_temp_dir().path_join("vn-legacy-check-%d" % OS.get_process_id())
+	DirAccess.make_dir_recursive_absolute(vn.storage.directory)
+
 	# 游戏里的 V 键入口
 	var key := InputEventKey.new()
 	key.keycode = KEY_V

@@ -37,6 +37,8 @@ func _ready() -> void:
 	_credits_button.pressed.connect(_show_credits)
 	_quit_button.pressed.connect(_quit_game)
 	_start_button.grab_focus()
+	if VN.menu.visible:
+		VN.menu.back.grab_focus()
 
 
 func _process(delta: float) -> void:
@@ -50,6 +52,8 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if VN.menu.visible or VN.is_open:
+		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
 		_quit_game()
 
@@ -74,8 +78,7 @@ func _start_game() -> void:
 
 func _start_demo() -> void:
 	if not _starting:
-		if VN.open_file("res://vn/demo.json", {"auto_advance": false}):
-			VN.closed.connect(func(): %DemoButton.grab_focus(), CONNECT_ONE_SHOT)
+		VN.show_title()
 
 
 func _show_credits() -> void:

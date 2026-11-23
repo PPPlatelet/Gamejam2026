@@ -60,7 +60,13 @@ var _close_tween: Tween
 var _open_serial := 0
 var _continuous := false
 var _history: Array[String] = []
-var _save_path := "user://vn-slot.json"
+var controller
+var _route: Array = []
+var _travel := 0
+var _travel_wait := 0.0
+var _hud_hidden := false
+var _checkpoint_pending := false
+var _hud_visibility: Dictionary = {}
 @onready var _tools: HBoxContainer = $PageFrame/Page/Tools
 @onready var _choices: VBoxContainer = $PageFrame/Page/ChoiceScroll/Choices
 @onready var _archive: PanelContainer = $PageFrame/Archive
@@ -75,9 +81,24 @@ func _ready() -> void:
 	_button.pressed.connect(advance)
 	_tools.get_node("Auto").pressed.connect(_toggle_auto)
 	_tools.get_node("History").pressed.connect(_show_history)
-	_tools.get_node("Save").pressed.connect(_save_progress)
-	_tools.get_node("Load").pressed.connect(_load_progress)
-	_tools.get_node("Exit").pressed.connect(request_close)
+	_tools.get_node("Save").pressed.connect(func(): controller.menu.slots(true, Callable()))
+	_tools.get_node("Load").pressed.connect(func(): controller.show_load_menu())
+	_tools.get_node("Exit").text = "返回标题"
+	_tools.get_node("Exit").pressed.connect(func(): controller.return_to_title())
+	var commands := {"快存": _quick.bind(true), "快读": _quick.bind(false), "导航": _navigation_menu,
+		"设置": func(): controller.show_settings(), "音量": func(): controller.menu.settings(true, Callable()),
+		"流程图": func(): controller.show_flowchart(), "隐藏 HUD": _hide_hud}
+	for label in commands:
+		var button := Button.new()
+		button.text = label
+		if label == "导航":
+			button.name = "Navigation"
+		elif label == "隐藏 HUD":
+			button.name = "HideHud"
+			button.tooltip_text = "隐藏界面，点击画面或按键恢复"
+		button.pressed.connect(commands[label])
+		_tools.add_child(button)
+	_tools.move_child(_tools.get_node("Exit"), -1)
 	_archive.get_node("Body/Back").pressed.connect(_hide_history)
 	_apply_body_font()
 
@@ -97,7 +118,19 @@ func _apply_body_font() -> void:
 
 
 func _process(delta: float) -> void:
-	if not visible or _archive.visible or _closing:
+	if not visible or _archive.visible or _closing or controller.menu.visible or _hud_hidden:
+		return
+	if _travel != 0:
+		_travel_wait -= delta
+		if _travel_wait <= 0 and not _transitioning:
+			_travel_wait = 0.18
+			if _travel < 0:
+				if not _back_to(_route.size() - 2):
+					_stop_modes()
+			else:
+				_skip_step()
+		return
+	if _transitioning:
 		return
 	if _phase == Phase.TYPING:
 		_type_progress += _type_speed * delta
@@ -112,17 +145,28 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not visible or _closing:
+	if not visible or _closing or controller.menu.visible:
 		return
 	# 小说打开时吞掉所有未被界面处理的输入，避免 pause=false 时误触游戏快捷键
 	get_viewport().set_input_as_handled()
 	if event is InputEventKey and event.pressed and not event.echo:
+		if _hud_hidden:
+			_restore_hud()
+			return
 		if _archive.visible:
 			if event.keycode == KEY_ESCAPE:
 				_hide_history()
 			return
-		if event.keycode == KEY_ESCAPE:
+		if event.keycode == KEY_ESCAPE and _travel != 0:
+			_stop_modes()
+		elif event.keycode == KEY_ESCAPE:
 			request_close()
+		elif event.keycode == KEY_H:
+			_hide_hud()
+		elif event.keycode == KEY_F5:
+			_quick(true)
+		elif event.keycode == KEY_F9:
+			_quick(false)
 		elif event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]:
 			advance()
 
@@ -145,13 +189,17 @@ func show_story(story: VnStory, options: Dictionary = {}) -> void:
 		_close_tween.kill()
 	_close_tween = null
 	_story = story
+	_restore_hud()
+	_route.clear()
+	_travel = 0
+	_tools.get_node("Navigation").text = "导航"
 	_history.clear()
 	_archive.hide()
 	_page.show()
 	_continuous = false
 	_tools.get_node("Auto").text = "自动"
 	_tools.get_node("Save").disabled = story.source_path.is_empty()
-	_tools.get_node("Load").disabled = story.source_path.is_empty()
+	_tools.get_node("Load").disabled = false
 	_type_speed = maxf(0.0, float(options.get("typewriter_speed", DEFAULT_TYPE_SPEED)))
 	_auto_advance = bool(options.get("auto_advance", true))
 	_page_hold = maxf(0.0, float(options.get("page_hold", DEFAULT_PAGE_HOLD)))
@@ -192,7 +240,10 @@ func show_story(story: VnStory, options: Dictionary = {}) -> void:
 
 ## 玩家点了蓝色按钮（或按了空格 / 回车）。
 func advance() -> void:
-	if not visible or _closing or _transitioning or _story == null or _archive.visible:
+	if not visible or _closing or _transitioning or _story == null or _archive.visible or controller.menu.visible or _hud_hidden:
+		return
+	if _travel != 0:
+		_stop_modes()
 		return
 
 	match _phase:
@@ -213,6 +264,7 @@ func current_page() -> int:
 func request_close() -> void:
 	if not visible or _closing:
 		return
+	controller.save_game("resume")
 	_closing = true
 	_phase = Phase.IDLE
 	_button.disabled = true
@@ -237,6 +289,7 @@ func request_close() -> void:
 
 func _enter_page(index: int) -> void:
 	_page_index = index
+	_route.append({"id": _story.pages[index].id, "before": _history.size()})
 	_clear_choices()
 	_phase = Phase.IDLE
 	_hold_left = 0.0
@@ -247,6 +300,7 @@ func _enter_page(index: int) -> void:
 	_refresh_dots()
 	_update_button()
 	page_changed.emit(_page_index, _story.pages.size())
+	_queue_checkpoint()
 	if _continuous:
 		_start_typing()
 
@@ -278,6 +332,9 @@ func _finish_typing() -> void:
 	_update_button()
 	_build_choices()
 	text_finished.emit(_page_index)
+	_queue_checkpoint()
+	if _travel > 0 and not page.choices.is_empty():
+		_stop_modes()
 
 
 func _next_page() -> void:
@@ -294,7 +351,7 @@ func _next_page() -> void:
 		_finish_story()
 
 
-func _goto_page(index: int) -> void:
+func _goto_page(index: int, choice_text := "") -> void:
 	_transitioning = true
 	_button.disabled = true
 	var serial := _open_serial
@@ -304,6 +361,8 @@ func _goto_page(index: int) -> void:
 	if _closing or serial != _open_serial:
 		return
 
+	if not choice_text.is_empty():
+		_history.append("› " + choice_text)
 	_enter_page(index)
 
 	var tween_in := create_tween()
@@ -318,7 +377,6 @@ func _goto_page(index: int) -> void:
 
 
 func _finish_story() -> void:
-	_phase = Phase.IDLE
 	finished.emit()
 	request_close()
 
@@ -459,8 +517,13 @@ func _build_choices() -> void:
 func _select_choice(choice: Dictionary) -> void:
 	if _phase != Phase.HOLD or _transitioning or _closing or _archive.visible:
 		return
-	_history.append("› " + str(choice.text))
-	_follow(choice.next)
+	if _travel != 0:
+		_stop_modes()
+	if choice.next == "@end":
+		_history.append("› " + str(choice.text))
+		_finish_story()
+	else:
+		_goto_page(_story.page_indices[choice.next], choice.text)
 
 
 func _follow(target: String) -> void:
@@ -473,6 +536,8 @@ func _follow(target: String) -> void:
 func _toggle_auto() -> void:
 	if _closing or _transitioning:
 		return
+	_travel = 0
+	_tools.get_node("Navigation").text = "导航"
 	_continuous = not _continuous
 	_auto_advance = _continuous
 	_tools.get_node("Auto").text = "自动 ✓" if _continuous else "自动"
@@ -501,50 +566,194 @@ func _hide_history() -> void:
 	_tools.get_node("History").grab_focus()
 
 
-func _save_progress() -> void:
-	if _story.source_path.is_empty() or _transitioning or _closing:
-		return
-	var state := {"version": 1, "story": _story.source_path, "revision": _story.revision,
-		"page": _story.pages[_page_index].id, "read": _phase == Phase.HOLD, "history": _history}
-	var file := FileAccess.open(_save_path + ".tmp", FileAccess.WRITE)
-	if file == null:
-		_hint.text = "存档写入失败"
-		return
-	file.store_string(JSON.stringify(state))
-	file.flush()
-	var err := file.get_error()
-	file.close()
-	if err == OK:
-		err = DirAccess.rename_absolute(_save_path + ".tmp", _save_path)
-	_hint.text = "进度已保存" if err == OK else "存档写入失败"
+func _queue_checkpoint() -> void:
+	if not _checkpoint_pending and not _story.source_path.is_empty():
+		_checkpoint_pending = true
+		_flush_checkpoint.call_deferred()
 
 
-func _load_progress() -> void:
-	if _story.source_path.is_empty() or _transitioning or _closing:
+func _flush_checkpoint() -> void:
+	_checkpoint_pending = false
+	if visible and not _closing and controller.is_open:
+		controller.save_game("resume")
+
+
+func snapshot() -> Dictionary:
+	if _story == null or _story.source_path.is_empty() or _route.is_empty():
+		return {}
+	return {"version": 2, "story": _story.source_path, "revision": _story.revision,
+		"title": _story.title, "page": _story.pages[_page_index].id,
+		"read": _phase == Phase.HOLD, "history": _history.duplicate(), "route": _route.duplicate(true)}
+
+
+func restore(state: Dictionary) -> void:
+	_stop_modes()
+	_route.clear()
+	_history.clear()
+	_enter_page(_story.page_indices[state.page])
+	if state.read:
+		_reveal()
+	_history.assign(state.history)
+	if state.has("route"):
+		_route = state.route.duplicate(true)
+	else:
+		# 旧存档仅记录文本；从能确定的当前页重新建立可回退路径。
+		_route[0].before = maxi(0, _history.size() - int(state.read))
+	_hint.text = "进度已恢复"
+
+
+func apply_preference(key: String, value: float) -> void:
+	if key == "speed":
+		_type_speed = value
+		if value == 0 and _phase == Phase.TYPING:
+			_finish_typing()
+	elif key == "delay":
+		_page_hold = value
+		_hold_left = value
+
+
+func visited_ids() -> Array:
+	return _route.map(func(step): return step.id)
+
+
+func _quick(saving: bool) -> void:
+	if _transitioning or _closing:
 		return
-	if not FileAccess.file_exists(_save_path):
-		_hint.text = "尚无存档"
-		return
-	var state = JSON.parse_string(FileAccess.get_file_as_string(_save_path))
-	if not state is Dictionary or state.get("version") != 1 or state.get("story") != _story.source_path or state.get("revision") != _story.revision:
-		_hint.text = "存档损坏，或不属于当前版本的剧本"
-		return
-	if not state.get("page") is String or not _story.page_indices.has(state.page) or not state.get("history") is Array or not state.get("read") is bool:
-		_hint.text = "存档内容无效"
-		return
-	for line in state.history:
-		if not line is String:
-			_hint.text = "存档记录无效"
-			return
+	var ok: bool = controller.quick_save() if saving else controller.quick_load()
+	if saving:
+		_hint.text = "已快速存档" if ok else "快存失败"
+	else:
+		_hint.text = "已快速读档" if ok else "没有可用的快速存档"
+
+
+func _reveal() -> void:
+	if _phase != Phase.HOLD:
+		_text.text = _story.pages[_page_index].text
+		_finish_typing()
+
+
+func _stop_modes() -> void:
+	_travel = 0
 	_continuous = false
 	_auto_advance = false
 	_tools.get_node("Auto").text = "自动"
-	_enter_page(_story.page_indices[state.page])
-	if state.read:
-		_text.text = _story.pages[_page_index].text
-		_finish_typing()
-	_history.assign(state.history)
-	_hint.text = "进度已恢复"
+	_tools.get_node("Navigation").text = "导航"
+
+
+func _navigation_menu() -> void:
+	if _closing or _transitioning:
+		return
+	if _travel != 0:
+		_stop_modes()
+		return
+	controller.menu.begin("navigation", "阅读导航")
+	var targets := {"上一句": "line", "上一个选项": "prev_choice", "上一个场景": "prev_scene",
+		"快退": "rewind", "快进": "forward", "下一个场景": "next_scene", "下一个选项": "next_choice"}
+	for label in targets:
+		controller.menu.action(label, navigate.bind(targets[label]))
+
+
+func navigate(command: String) -> void:
+	if _closing or _transitioning:
+		return
+	controller.menu.close()
+	_stop_modes()
+	match command:
+		"line":
+			if not _back_to(_route.size() - 2):
+				_hint.text = "已到第一句"
+		"prev_choice", "prev_scene":
+			var previous := _previous_stop(command == "prev_choice")
+			if not _back_to(previous):
+				_hint.text = "前面没有对应的节点"
+		"rewind", "forward":
+			_travel = -1 if command == "rewind" else 1
+			_travel_wait = 0
+			_tools.get_node("Navigation").text = "停止快退" if _travel < 0 else "停止快进"
+		"next_scene", "next_choice":
+			_seek_forward(command == "next_choice")
+
+
+func _previous_stop(choice: bool) -> int:
+	var scene := _story.scene_key(_page_index)
+	for i in range(_route.size() - 2, -1, -1):
+		var index: int = _story.page_indices[_route[i].id]
+		if choice and not _story.pages[index].choices.is_empty():
+			return i
+		if not choice and _story.scene_key(index) != scene:
+			var target := i
+			while target > 0 and _story.scene_key(_story.page_indices[_route[target - 1].id]) == _story.scene_key(index):
+				target -= 1
+			return target
+	return -1
+
+
+func _back_to(step: int) -> bool:
+	if step < 0 or step >= _route.size():
+		return false
+	var entry: Dictionary = _route[step]
+	_route.resize(step)
+	_history.resize(int(entry.before))
+	_enter_page(_story.page_indices[entry.id])
+	_reveal()
+	return true
+
+
+func _skip_step() -> bool:
+	_reveal()
+	if not _story.pages[_page_index].choices.is_empty():
+		_stop_modes()
+		return false
+	var next := _story.next_id(_page_index)
+	if next == "@end":
+		_stop_modes()
+		_hint.text = "已到最后一句"
+		return false
+	_enter_page(_story.page_indices[next])
+	_reveal()
+	return true
+
+
+func _seek_forward(choice: bool) -> void:
+	var scene := _story.scene_key(_page_index)
+	var seen := {}
+	while not seen.has(_page_index):
+		seen[_page_index] = true
+		if not _skip_step():
+			return
+		if not _story.pages[_page_index].choices.is_empty() or (not choice and _story.scene_key(_page_index) != scene):
+			return
+	_hint.text = "当前路线循环，已停止跳转"
+
+
+func _hide_hud() -> void:
+	if _closing or _transitioning:
+		return
+	_hud_hidden = true
+	_hud_visibility.clear()
+	for child in _page.get_children():
+		if child is Control and child != _backdrop and child != _portrait:
+			_hud_visibility[child] = child.visible
+			child.hide()
+
+
+func _restore_hud() -> void:
+	if not _hud_hidden:
+		return
+	for child in _hud_visibility:
+		child.visible = _hud_visibility[child]
+	_hud_visibility.clear()
+	_hud_hidden = false
+	_tools.get_node("HideHud").grab_focus()
+
+
+func _input(event: InputEvent) -> void:
+	if controller.menu.visible:
+		return
+	if visible and _hud_hidden:
+		get_viewport().set_input_as_handled()
+		if (event is InputEventMouseButton or event is InputEventScreenTouch or event is InputEventKey) and event.pressed:
+			_restore_hud()
 
 
 func _ink_for(bg: Color) -> Color:

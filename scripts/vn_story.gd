@@ -119,6 +119,7 @@ static func from_dict(data: Dictionary) -> VnStory:
 			"speaker": str(raw.get("speaker", "")),
 			"text": page_text,
 			"id": page_id,
+			"scene": str(raw.get("scene", raw.get("background", ""))),
 			"next": str(raw.get("next", "")),
 			"background": str(raw.get("background", "")),
 			"portrait": str(raw.get("portrait", "")),
@@ -134,6 +135,41 @@ static func from_dict(data: Dictionary) -> VnStory:
 				push_error("视觉小说：页 %s 找不到目标 %s" % [page.id, target])
 				return null
 	return story
+
+
+func next_id(index: int) -> String:
+	var target: String = pages[index].next
+	if not target.is_empty():
+		return target
+	return str(pages[index + 1].id) if index + 1 < pages.size() else "@end"
+
+
+func scene_key(index: int) -> String:
+	return pages[index].scene
+
+
+func accepts_save(state: Dictionary) -> bool:
+	if (state.get("version") != 1 and state.get("version") != 2) or source_path.is_empty() or state.get("story") != source_path or state.get("revision") != revision:
+		return false
+	if not state.get("read") is bool or not state.get("page") is String or not page_indices.has(state.page) or not state.get("history") is Array:
+		return false
+	for line in state.history:
+		if not line is String:
+			return false
+	if state.version == 1:
+		return true
+	var route = state.get("route")
+	if not route is Array or route.is_empty():
+		return false
+	var last := 0
+	for entry in route:
+		if not entry is Dictionary or not page_indices.has(entry.get("id")):
+			return false
+		var before = entry.get("before")
+		if not (before is int or before is float) or before != int(before) or before < last or before > state.history.size():
+			return false
+		last = int(before)
+	return route.back().id == state.page
 
 
 func page_count() -> int:
