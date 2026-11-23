@@ -66,6 +66,9 @@ var _moving := false
 var _held := false
 var _dead := false
 var _flash_time := 0.0
+var _stun_time := 0.0
+var _burn_time := 0.0
+var _burn_dps := 0.0
 
 
 func _ready() -> void:
@@ -88,6 +91,14 @@ func _process(delta: float) -> void:
 		_flash_time -= delta
 		if _flash_time <= 0.0:
 			modulate = Color.WHITE
+	if _burn_time > 0.0:
+		_burn_time -= delta
+		_apply_damage(_burn_dps * delta, false)
+		if _dead:
+			return
+	if _stun_time > 0.0:
+		_stun_time -= delta
+		return
 	if _moving or _held:
 		return
 
@@ -138,14 +149,30 @@ func _fire(target) -> void:
 
 
 func take_damage(amount: float) -> void:
+	_apply_damage(amount, true)
+
+
+func _apply_damage(amount: float, flash: bool) -> void:
 	if _dead:
 		return
 	hp = maxf(0.0, hp - amount)
-	_flash_time = 0.10
-	modulate = Color(1.6, 1.6, 1.6)
+	if flash:
+		_flash_time = 0.10
+		modulate = Color(1.6, 1.6, 1.6)
 	queue_redraw()
 	if hp <= 0.0:
 		_die()
+
+
+## 被倭刀船眩晕：一定时间内不攻击、不开光环。
+func stun(duration: float) -> void:
+	_stun_time = maxf(_stun_time, duration)
+
+
+## 持续伤害（倭刀船 / 炸弹船点燃）。
+func apply_burn(dps: float, duration: float) -> void:
+	_burn_dps = maxf(_burn_dps, dps)
+	_burn_time = maxf(_burn_time, duration)
 
 
 func _die() -> void:

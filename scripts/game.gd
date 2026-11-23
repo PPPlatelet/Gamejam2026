@@ -102,6 +102,8 @@ var _ghost_unit = null
 var _place_buttons := {}
 var _active_place_button = null
 var _last_message := ""
+var _j_held := false
+var _j_used_for_spawn := false
 var _rng := RandomNumberGenerator.new()
 var _spawn_paths: Array = []
 var _story_overlay
@@ -192,7 +194,37 @@ func _unhandled_input(event: InputEvent) -> void:
 				_cancel_place_mode()
 			elif drag_to_move and _dragging:
 				_cancel_drag()
-	elif event is InputEventKey and event.pressed and not event.echo:
+	elif event is InputEventKey and not event.echo:
+		# J 按住不放时按 1~4 出指定的敌人；只按 J 则开关状态窗口。
+		if event.keycode == KEY_J:
+			if event.pressed:
+				_j_held = true
+				_j_used_for_spawn = false
+			else:
+				_j_held = false
+				if not _j_used_for_spawn:
+					_stats_panel.toggle()
+					if _stats_panel.visible:
+						_refresh_panel()
+				_j_used_for_spawn = false
+			return
+		if not event.pressed:
+			return
+		if _j_held:
+			var enemy_kind := -1
+			match event.keycode:
+				KEY_1, KEY_KP_1:
+					enemy_kind = 0
+				KEY_2, KEY_KP_2:
+					enemy_kind = 1
+				KEY_3, KEY_KP_3:
+					enemy_kind = 2
+				KEY_4, KEY_KP_4:
+					enemy_kind = 3
+			if enemy_kind >= 0:
+				_j_used_for_spawn = true
+				_spawn_enemy(enemy_kind)
+				return
 		match event.keycode:
 			KEY_P:
 				_board_view.show_paths = not _board_view.show_paths
@@ -202,10 +234,6 @@ func _unhandled_input(event: InputEvent) -> void:
 				_board_view.show_numbers = not _board_view.show_numbers
 				_board_view.queue_redraw()
 				_toast("格子编号：" + ("开" if _board_view.show_numbers else "关"))
-			KEY_J:
-				_stats_panel.toggle()
-				if _stats_panel.visible:
-					_refresh_panel()
 			KEY_V:
 				_open_vn()
 			KEY_L:
@@ -903,9 +931,11 @@ func _story_condition(when: Dictionary) -> bool:
 
 # ---------------------------------------------------------------- 敌人
 
-func _spawn_enemy() -> void:
+func _spawn_enemy(type := -1) -> void:
 	if board.spawn_cells.is_empty():
 		return
+	if type < 0:
+		type = _random_enemy_type()
 	var spawn: Vector2i = board.spawn_cells[_rng.randi_range(0, board.spawn_cells.size() - 1)]
 	var waypoint := Vector2i(-1, -1)
 	if _rng.randf() < 0.45:
@@ -917,16 +947,30 @@ func _spawn_enemy() -> void:
 	for cell in cells:
 		points.append(board.cell_center(cell))
 	var enemy = ENEMY_SCENE.instantiate()
-	enemy.set_max_hp(enemy_max_hp)
+	enemy.configure(type)
 	enemy.reached_base.connect(_on_enemy_reached)
 	enemy.died.connect(_on_enemy_died)
 	_board_view.add_child(enemy)
-	enemy.setup(points, enemy_speed_cells)
+	enemy.set_max_hp(enemy.max_hp * (enemy_max_hp / 40.0))
+	enemy.setup(points, enemy.speed_cells)
 	enemy.speed *= _rng.randf_range(0.85, 1.15)
 	enemy.waypoint = waypoint
 	_enemies.append(enemy)
 	_spawned_total += 1
+	_toast("出怪：" + enemy.display_name)
 	_update_stats()
+
+
+## 按 L 时随机出的敌人：小船最常见，炸弹船最少。
+func _random_enemy_type() -> int:
+	var roll := _rng.randf()
+	if roll < 0.50:
+		return 0
+	if roll < 0.70:
+		return 1
+	if roll < 0.85:
+		return 2
+	return 3
 
 
 ## 随机挑一个中途要绕过去的空格子；没有合适的就返回 -1。
@@ -975,7 +1019,8 @@ func _on_enemy_reached(enemy) -> void:
 ## 敌人被打死：从场上名单里移除并计入击杀。
 func _on_enemy_died(enemy) -> void:
 	_enemies.erase(enemy)
-	_kills += 1
+	if enemy.counts_as_kill:
+		_kills += 1
 	_update_stats()
 
 
