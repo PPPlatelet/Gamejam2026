@@ -1,0 +1,154 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/game_over.gd" id="1_over"]
+
+[sub_resource type="SystemFont" id="SystemFont_sans"]
+font_names = PackedStringArray("Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "PingFang SC")
+
+[sub_resource type="SystemFont" id="SystemFont_bold"]
+font_names = PackedStringArray("Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "PingFang SC")
+font_weight = 700
+
+[sub_resource type="StyleBoxFlat" id="SB_panel"]
+bg_color = Color(0.973, 0.965, 0.949, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.16, 0.15, 0.13, 0.16)
+corner_radius_top_left = 28
+corner_radius_top_right = 28
+corner_radius_bottom_right = 28
+corner_radius_bottom_left = 28
+shadow_color = Color(0.02, 0.03, 0.06, 0.45)
+shadow_size = 36
+shadow_offset = Vector2(0, 16)
+
+[sub_resource type="StyleBoxFlat" id="SB_button"]
+content_margin_left = 26.0
+content_margin_top = 10.0
+content_margin_right = 26.0
+content_margin_bottom = 10.0
+bg_color = Color(0.184, 0.42, 1, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+shadow_color = Color(0.06, 0.18, 0.55, 0.3)
+shadow_size = 10
+shadow_offset = Vector2(0, 4)
+
+[sub_resource type="StyleBoxFlat" id="SB_button_hover"]
+content_margin_left = 26.0
+content_margin_top = 10.0
+content_margin_right = 26.0
+content_margin_bottom = 10.0
+bg_color = Color(0.29, 0.51, 1, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxFlat" id="SB_button_pressed"]
+content_margin_left = 26.0
+content_margin_top = 10.0
+content_margin_right = 26.0
+content_margin_bottom = 10.0
+bg_color = Color(0.125, 0.3, 0.8, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxEmpty" id="SB_focus"]
+
+[node name="GameOver" type="CanvasLayer"]
+process_mode = 3
+layer = 200
+script = ExtResource("1_over")
+
+[node name="Dim" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.04, 0.05, 0.07, 0.62)
+mouse_filter = 0
+
+[node name="Panel" type="Panel" parent="."]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -310.0
+offset_top = -180.0
+offset_right = 310.0
+offset_bottom = 180.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("SB_panel")
+
+[node name="Margin" type="MarginContainer" parent="Panel"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/margin_left = 44
+theme_override_constants/margin_top = 40
+theme_override_constants/margin_right = 44
+theme_override_constants/margin_bottom = 36
+
+[node name="VBox" type="VBoxContainer" parent="Panel/Margin"]
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Panel/Margin/VBox"]
+text = "基地失守"
+theme_override_colors/font_color = Color(0.16, 0.15, 0.13, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+theme_override_font_sizes/font_size = 46
+horizontal_alignment = 1
+
+[node name="Hint" type="Label" parent="Panel/Margin/VBox"]
+text = "敌人突破了防线，基地血量耗尽"
+theme_override_colors/font_color = Color(0.16, 0.15, 0.13, 0.6)
+theme_override_fonts/font = SubResource("SystemFont_sans")
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 1
+
+[node name="Stats" type="Label" parent="Panel/Margin/VBox"]
+text = "共 0 个敌人抵达基地"
+theme_override_colors/font_color = Color(0.16, 0.15, 0.13, 0.85)
+theme_override_fonts/font = SubResource("SystemFont_sans")
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 18)
+
+[node name="Buttons" type="HBoxContainer" parent="Panel/Margin/VBox"]
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="Retry" type="Button" parent="Panel/Margin/VBox/Buttons"]
+custom_minimum_size = Vector2(210, 58)
+focus_mode = 0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.9, 0.93, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+theme_override_font_sizes/font_size = 22
+theme_override_styles/normal = SubResource("SB_button")
+theme_override_styles/hover = SubResource("SB_button_hover")
+theme_override_styles/pressed = SubResource("SB_button_pressed")
+theme_override_styles/focus = SubResource("SB_focus")
+text = "再来一次"
+
+[node name="Menu" type="Button" parent="Panel/Margin/VBox/Buttons"]
+custom_minimum_size = Vector2(210, 58)
+focus_mode = 0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.9, 0.93, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+theme_override_font_sizes/font_size = 22
+theme_override_styles/normal = SubResource("SB_button")
+theme_override_styles/hover = SubResource("SB_button_hover")
+theme_override_styles/pressed = SubResource("SB_button_pressed")
+theme_override_styles/focus = SubResource("SB_focus")
+text = "返回菜单"
