@@ -1,4 +1,4 @@
-extends Node2D
+﻿extends Node2D
 
 ## 六边形塔防 · 框架
 ##
@@ -189,6 +189,7 @@ func _process(delta: float) -> void:
 	_elapsed += delta
 	_check_story()
 	_check_waves()
+	_refresh_move_markers()
 	if _elapsed >= match_seconds and not _is_over:
 		_win()
 	_refresh_panel()
@@ -470,7 +471,7 @@ func _try_build(cell: Vector2i, type := 0, from_base := false) -> bool:
 		# 新船从基地出发，逐格走到目标格；途中不开火、不转向。
 		unit.position = board.cell_center(board.base_cell)
 		unit.move_through(route)
-		_show_move_marker(cell, unit)
+		_refresh_move_markers()
 	else:
 		unit.position = board.cell_center(cell)
 
@@ -505,8 +506,18 @@ func _on_unit_died(unit) -> void:
 
 # ---------------------------------------------------------------- 点选移动
 
-## 左键：点塔选中，再点空格移动；点空格放塔。
+## 左键：点单位选中（正在移动的也能点），再点空格移动；点空格放塔。
 func _handle_left_click(cell: Vector2i) -> void:
+	# 正在移动的单位不在格心，用距离判断有没有点中它。
+	var clicked_unit = _unit_at_mouse()
+	if clicked_unit != null:
+		var unit_cell := _cell_of_unit(clicked_unit)
+		if _selected_unit_cell == unit_cell:
+			_select_tower(Vector2i(-1, -1))
+		else:
+			_select_tower(unit_cell)
+		return
+
 	if _selected_unit_cell != Vector2i(-1, -1):
 		if cell == _selected_unit_cell:
 			_select_tower(Vector2i(-1, -1))
@@ -521,9 +532,34 @@ func _handle_left_click(cell: Vector2i) -> void:
 		_select_tower(cell)
 
 
+## 鼠标附近的我方单位（含正在移动的）。
+func _unit_at_mouse():
+	var mouse_local: Vector2 = _board_view.to_local(get_global_mouse_position())
+	for key in _unit_nodes:
+		var unit = _unit_nodes[key]
+		if is_instance_valid(unit) and unit.position.distance_to(mouse_local) <= 0.7:
+			return unit
+	return null
+
+
+func _cell_of_unit(unit) -> Vector2i:
+	for key in _unit_nodes:
+		if _unit_nodes[key] == unit:
+			return key
+	return Vector2i(-1, -1)
+
+
 func _select_tower(cell: Vector2i) -> void:
 	_selected_unit_cell = cell
 	_board_view.selected_cell = cell
+	if cell == Vector2i(-1, -1):
+		if not _placing:
+			_board_view.show_grid = false
+			_board_view.show_veil = false
+	else:
+		# 选中准备移动时也把网格亮出来，方便看距离。
+		_board_view.show_grid = true
+		_board_view.show_veil = false
 	_board_view.queue_redraw()
 
 
@@ -836,11 +872,15 @@ func _try_move_unit(from_cell: Vector2i, to_cell: Vector2i) -> bool:
 	var tower = _unit_nodes.get(from_cell)
 	if tower == null or not is_instance_valid(tower):
 		return false
-	if tower.is_moving():
-		_toast("塔正在移动")
-		return false
 
-	var distance := board.hex_distance(from_cell, to_cell)
+	# 正在移动的单位可以重新选目的地：从它当前所在的格子重新算路和花费。
+	var start_cell := from_cell
+	if tower.is_moving():
+		var current := board.world_to_cell(tower.position)
+		if board.is_inside(current):
+			start_cell = current
+
+	var distance := board.hex_distance(start_cell, to_cell)
 	var cost := distance * move_cost_per_cell
 	if _command < cost:
 		_toast("指挥点不足：移动 %d 格需要 %d" % [distance, int(cost)])
@@ -850,19 +890,21 @@ func _try_move_unit(from_cell: Vector2i, to_cell: Vector2i) -> bool:
 		return false
 
 	board.unblock(from_cell)
-	var route := board.find_path(from_cell, to_cell)
+	var route := board.find_path(start_cell, to_cell)
 	board.block(to_cell, "unit")
 	_unit_nodes.erase(from_cell)
 	_unit_nodes[to_cell] = tower
 
 	var points := PackedVector2Array()
 	for path_cell in route:
-		if path_cell != from_cell:
+		if path_cell != start_cell:
 			points.append(board.cell_center(path_cell))
 	if points.is_empty():
 		points.append(board.cell_center(to_cell))
 	tower.move_through(points)
-	_show_move_marker(to_cell, tower)
+	_refresh_move_markers()
+	if _selected_unit_cell == from_cell:
+		_select_tower(to_cell)
 
 	_command -= cost
 	_repath_enemies()
@@ -872,18 +914,18 @@ func _try_move_unit(from_cell: Vector2i, to_cell: Vector2i) -> bool:
 	return true
 
 
-## 滑行期间在目的地显示带刻度的蓝框，落地后清掉。
-func _show_move_marker(cell: Vector2i, tower) -> void:
-	_board_view.drag_target_cell = cell
-	_board_view.drag_target_valid = true
+## 滑行期间在目的地显示带刻度的蓝框，落地后自动消失；
+## 同时移动几艘船就画几个框。
+func _refresh_move_markers() -> void:
+	var cells: Array = []
+	for cell in _unit_nodes:
+		var unit = _unit_nodes[cell]
+		if is_instance_valid(unit) and unit.is_moving():
+			cells.append(cell)
+	if cells == _board_view.move_marker_cells:
+		return
+	_board_view.move_marker_cells = cells
 	_board_view.queue_redraw()
-	tower.move_finished.connect(_on_tower_move_finished.bind(cell), CONNECT_ONE_SHOT)
-
-
-func _on_tower_move_finished(target_cell: Vector2i) -> void:
-	if _board_view.drag_target_cell == target_cell:
-		_board_view.drag_target_cell = Vector2i(-1, -1)
-		_board_view.queue_redraw()
 
 
 ## 假设塔从 from_cell 挪到 to_cell，检查所有出生点是否还走得到基地。
