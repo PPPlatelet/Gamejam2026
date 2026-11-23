@@ -36,6 +36,7 @@ var show_veil := false           # 显示网格时是否再铺一层淡白（放
 var drag_cell := Vector2i(-1, -1)          # 塔当前压住的格子（第二个图）
 var drag_target_cell := Vector2i(-1, -1)   # 松手后的目标格（第三个图）
 var drag_target_valid := true
+var move_marker_cells: Array = []          # 正在移动的单位目的地（可能同时有好几个）
 
 
 func _draw() -> void:
@@ -112,19 +113,27 @@ func _draw_drag_marks() -> void:
 		draw_colored_polygon(under_points, Color(DRAG_COLOR.r, DRAG_COLOR.g, DRAG_COLOR.b, 0.10))
 		draw_polyline(under_closed, DRAG_COLOR, 0.055, true)
 
-	if board.is_inside(drag_target_cell) and not board.is_removed(drag_target_cell):
-		var color := DRAG_COLOR if drag_target_valid else DRAG_BAD
-		var target_points := board.cell_polygon(drag_target_cell, 0.96)
-		var target_closed := target_points.duplicate()
-		target_closed.append(target_points[0])
-		draw_colored_polygon(target_points, Color(color.r, color.g, color.b, 0.12))
-		draw_polyline(target_closed, color, 0.06, true)
+	# 多个单位同时移动时，每个目的地都画一个蓝框。
+	for cell in move_marker_cells:
+		if board.is_inside(cell) and not board.is_removed(cell):
+			_draw_notched_cell(cell, DRAG_COLOR)
 
-		var center := board.cell_center(drag_target_cell)
-		for i in 6:
-			var vertex: Vector2 = target_points[i]
-			var outward := (vertex - center).normalized()
-			draw_line(vertex - outward * 0.05, vertex + outward * 0.10, color, 0.05, true)
+	if board.is_inside(drag_target_cell) and not board.is_removed(drag_target_cell):
+		_draw_notched_cell(drag_target_cell, DRAG_COLOR if drag_target_valid else DRAG_BAD)
+
+
+func _draw_notched_cell(cell: Vector2i, color: Color) -> void:
+	var points := board.cell_polygon(cell, 0.96)
+	var closed := points.duplicate()
+	closed.append(points[0])
+	draw_colored_polygon(points, Color(color.r, color.g, color.b, 0.12))
+	draw_polyline(closed, color, 0.06, true)
+
+	var center := board.cell_center(cell)
+	for i in 6:
+		var vertex: Vector2 = points[i]
+		var outward := (vertex - center).normalized()
+		draw_line(vertex - outward * 0.05, vertex + outward * 0.10, color, 0.05, true)
 
 
 ## 每格画一个编号：列字母 + 行号（A1、B3……），行从上往下 1 开始。

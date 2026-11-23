@@ -1,4 +1,4 @@
-extends Node2D
+﻿extends Node2D
 
 ## 六边形塔防 · 框架
 ##
@@ -189,6 +189,7 @@ func _process(delta: float) -> void:
 	_elapsed += delta
 	_check_story()
 	_check_waves()
+	_refresh_move_markers()
 	if _elapsed >= match_seconds and not _is_over:
 		_win()
 	_refresh_panel()
@@ -470,7 +471,7 @@ func _try_build(cell: Vector2i, type := 0, from_base := false) -> bool:
 		# 新船从基地出发，逐格走到目标格；途中不开火、不转向。
 		unit.position = board.cell_center(board.base_cell)
 		unit.move_through(route)
-		_show_move_marker(cell, unit)
+		_refresh_move_markers()
 	else:
 		unit.position = board.cell_center(cell)
 
@@ -901,7 +902,7 @@ func _try_move_unit(from_cell: Vector2i, to_cell: Vector2i) -> bool:
 	if points.is_empty():
 		points.append(board.cell_center(to_cell))
 	tower.move_through(points)
-	_show_move_marker(to_cell, tower)
+	_refresh_move_markers()
 	if _selected_unit_cell == from_cell:
 		_select_tower(to_cell)
 
@@ -913,18 +914,18 @@ func _try_move_unit(from_cell: Vector2i, to_cell: Vector2i) -> bool:
 	return true
 
 
-## 滑行期间在目的地显示带刻度的蓝框，落地后清掉。
-func _show_move_marker(cell: Vector2i, tower) -> void:
-	_board_view.drag_target_cell = cell
-	_board_view.drag_target_valid = true
+## 滑行期间在目的地显示带刻度的蓝框，落地后自动消失；
+## 同时移动几艘船就画几个框。
+func _refresh_move_markers() -> void:
+	var cells: Array = []
+	for cell in _unit_nodes:
+		var unit = _unit_nodes[cell]
+		if is_instance_valid(unit) and unit.is_moving():
+			cells.append(cell)
+	if cells == _board_view.move_marker_cells:
+		return
+	_board_view.move_marker_cells = cells
 	_board_view.queue_redraw()
-	tower.move_finished.connect(_on_tower_move_finished.bind(cell), CONNECT_ONE_SHOT)
-
-
-func _on_tower_move_finished(target_cell: Vector2i) -> void:
-	if _board_view.drag_target_cell == target_cell:
-		_board_view.drag_target_cell = Vector2i(-1, -1)
-		_board_view.queue_redraw()
 
 
 ## 假设塔从 from_cell 挪到 to_cell，检查所有出生点是否还走得到基地。
