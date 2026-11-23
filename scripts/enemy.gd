@@ -74,6 +74,8 @@ const STATS := {
 const BAR_WIDTH := 0.82
 const BAR_HEIGHT := 0.10
 const BAR_TOP := -0.64
+## 每走到一格后停下等多久，再走下一格。
+const PAUSE_PER_CELL := 0.5
 
 var enemy_type := Type.SMALL
 var display_name := "倭寇小船"
@@ -110,6 +112,7 @@ var _burn_dps := 0.0
 var _slow_factor := 1.0
 var _slow_time := 0.0
 var _attack_timer := 0.0
+var _wait_time := 0.0
 var _jitter := 0.0
 var _buff_move_now := 1.0
 var _buff_attack_now := 1.0
@@ -298,6 +301,10 @@ func _process(delta: float) -> void:
 
 
 func _walk(delta: float) -> void:
+	# 走一格 → 停一会儿 → 再走下一格。
+	if _wait_time > 0.0:
+		_wait_time -= delta
+		return
 	if _points.is_empty():
 		return
 	var slow_scale := _slow_factor if _slow_time > 0.0 else 1.0
@@ -310,6 +317,8 @@ func _walk(delta: float) -> void:
 		_index += 1
 		if _index >= _points.size():
 			_arrive()
+		else:
+			_wait_time = PAUSE_PER_CELL
 	else:
 		position += to_target.normalized() * step
 		_sprite.rotation = to_target.angle()
