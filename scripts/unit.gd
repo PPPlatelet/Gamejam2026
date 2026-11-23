@@ -1,4 +1,4 @@
-﻿class_name Unit
+class_name Unit
 extends Node2D
 
 ## 三种船（占位图：三个颜色的方块）。
@@ -107,9 +107,9 @@ func _process(delta: float) -> void:
 		_stun_time -= delta
 		return
 	if _stepping:
+		# 逐格移动中也会走到下面的攻击逻辑：移动时照样能开火。
 		_advance_step(delta)
-		return
-	if _moving or _held:
+	elif _moving or _held:
 		return
 
 	if unit_type == Type.SENTRY:
