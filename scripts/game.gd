@@ -129,7 +129,7 @@ func _ready() -> void:
 	_build_board()
 	_remove_cells()
 	_restore_cells()
-	_resolve_spawn_cell()
+	_resolve_spawn_cells()
 	_board_view.board = board
 	_fit_board()
 	_add_base_marker()
@@ -279,24 +279,38 @@ func _build_board() -> void:
 	board.spawn_cells = []
 
 
-## 所有敌人从这一个格子出生；如果它被删掉/挡住，就就近找可用格。
-func _resolve_spawn_cell() -> void:
-	if _is_spawnable(spawn_cell):
-		board.spawn_cells = [spawn_cell]
-		return
-	for radius in range(1, 10):
-		for row in range(spawn_cell.y - radius, spawn_cell.y + radius + 1):
-			for column in range(spawn_cell.x - radius, spawn_cell.x + radius + 1):
+## 出兵格子：每波可以在 spawn_waves.gd 里用 "cell": [x, y] 单独指定；
+## 没写就用 spawn_cell。这里把所有用到的格子收集成出生点集合（寻路校验 / 路线显示用）。
+func _resolve_spawn_cells() -> void:
+	var cells: Array[Vector2i] = []
+	for wave in SpawnWaves.WAVES:
+		var cell := _spawn_cell_from_data(wave)
+		if cell != Vector2i(-1, -1) and not cells.has(cell):
+			cells.append(cell)
+	if cells.is_empty():
+		cells.append(_nearest_spawnable(spawn_cell))
+	board.spawn_cells = cells
+
+
+## 读一波的出生格；没写或不可用就就近换一个。
+func _spawn_cell_from_data(wave: Dictionary) -> Vector2i:
+	var data = wave.get("cell", null)
+	var cell := spawn_cell
+	if data is Array and data.size() >= 2:
+		cell = Vector2i(int(data[0]), int(data[1]))
+	if _is_spawnable(cell):
+		return cell
+	return _nearest_spawnable(cell)
+
+
+func _nearest_spawnable(from: Vector2i) -> Vector2i:
+	for radius in range(0, 10):
+		for row in range(from.y - radius, from.y + radius + 1):
+			for column in range(from.x - radius, from.x + radius + 1):
 				var cell := Vector2i(column, row)
 				if _is_spawnable(cell):
-					board.spawn_cells = [cell]
-					return
-	for row in board.rows:
-		for column in board.columns:
-			var cell := Vector2i(column, row)
-			if _is_spawnable(cell):
-				board.spawn_cells = [cell]
-				return
+					return cell
+	return Vector2i(-1, -1)
 
 
 func _is_spawnable(cell: Vector2i) -> bool:
@@ -931,12 +945,12 @@ func _check_waves() -> void:
 			_wave_fired[index] = true
 			var spec = wave.get("spawn", {})
 			if spec is Dictionary and not spec.is_empty():
-				_spawn_from_script(spec)
+				_spawn_from_script(spec, _spawn_cell_from_data(wave))
 
 
-## 剧本里直接写出兵：{"small": 2, "sword": 1, "charge": 1, "bomb": 1}，
-## 同一波逐个出，间隔 0.35 秒，避免全堆在一个出生点上。
-func _spawn_from_script(spec: Dictionary) -> void:
+## 按一波的配置出兵：{"small": 2, "sword": 1, "charge": 1, "bomb": 1}，
+## 同一波逐个出，间隔 0.35 秒；from_cell 是这一波指定的出生格。
+func _spawn_from_script(spec: Dictionary, from_cell := Vector2i(-1, -1)) -> void:
 	var delay := 0.0
 	for key in spec:
 		var type := _enemy_type_by_name(str(key))
@@ -945,9 +959,9 @@ func _spawn_from_script(spec: Dictionary) -> void:
 		var count := maxi(1, ceili(int(spec[key]) * wave_scale))
 		for i in count:
 			if delay <= 0.0:
-				_spawn_enemy(type)
+				_spawn_enemy(type, from_cell)
 			else:
-				get_tree().create_timer(delay).timeout.connect(_spawn_enemy.bind(type))
+				get_tree().create_timer(delay).timeout.connect(_spawn_enemy.bind(type, from_cell))
 			delay += 0.35
 
 
@@ -993,12 +1007,14 @@ func _story_condition(when: Dictionary) -> bool:
 
 # ---------------------------------------------------------------- 敌人
 
-func _spawn_enemy(type := -1) -> void:
+func _spawn_enemy(type := -1, from_cell := Vector2i(-1, -1)) -> void:
 	if board.spawn_cells.is_empty():
 		return
 	if type < 0:
 		type = _random_enemy_type()
-	var spawn: Vector2i = board.spawn_cells[0]
+	var spawn := from_cell
+	if spawn == Vector2i(-1, -1) or not _is_spawnable(spawn):
+		spawn = board.spawn_cells[0]
 	var waypoint := Vector2i(-1, -1)
 	if _rng.randf() < 0.45:
 		waypoint = _pick_waypoint(spawn)
