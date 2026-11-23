@@ -19,6 +19,9 @@ const PAGE_COLORS := {
 const FALLBACK_COLOR := "white"
 
 var title := ""
+var source_path := ""
+var revision := ""
+var page_indices: Dictionary = {}
 ## 每页的结构：
 ## {
 ##   "color": Color,         页面底色
@@ -47,8 +50,11 @@ static func from_json_file(path: String) -> VnStory:
 		return null
 
 	var story := from_dict(json.data)
-	if story != null and story.title.is_empty():
-		story.title = path.get_file().get_basename()
+	if story != null:
+		story.source_path = path
+		story.revision = text.sha256_text()
+		if story.title.is_empty():
+			story.title = path.get_file().get_basename()
 	return story
 
 
@@ -86,14 +92,47 @@ static func from_dict(data: Dictionary) -> VnStory:
 			return null
 
 		var color_info := _parse_color(str(raw.get("color", FALLBACK_COLOR)))
+		var page_id := str(raw.get("id", str(page_number))).strip_edges()
+		if page_id.is_empty() or page_id == "@end" or story.page_indices.has(page_id):
+			push_error("视觉小说：第 %d 页 ID 为空、重复或保留" % page_number)
+			return null
+		story.page_indices[page_id] = page_number - 1
+		var choices: Array[Dictionary] = []
+		if raw.has("choices"):
+			if typeof(raw["choices"]) != TYPE_ARRAY:
+				push_error("视觉小说：第 %d 页的 choices 应该是数组" % page_number)
+				return null
+			for choice_raw in raw["choices"]:
+				if typeof(choice_raw) != TYPE_DICTIONARY:
+					push_error("视觉小说：第 %d 页的选项应该是对象" % page_number)
+					return null
+				var choice_text := str(choice_raw.get("text", "")).strip_edges()
+				var next_page := str(choice_raw.get("next", ""))
+				if choice_text.is_empty() or next_page.is_empty():
+					push_error("视觉小说：第 %d 页选项无效或目标越界" % page_number)
+					return null
+				choices.append({"text": choice_text, "next": next_page})
 		story.pages.append({
 			"color": color_info.color,
 			"color_key": color_info.key,
 			"color_label": color_info.label,
 			"speaker": str(raw.get("speaker", "")),
 			"text": page_text,
+			"id": page_id,
+			"next": str(raw.get("next", "")),
+			"background": str(raw.get("background", "")),
+			"portrait": str(raw.get("portrait", "")),
+			"choices": choices,
 		})
 
+	for page in story.pages:
+		var targets := [page.next]
+		for choice in page.choices:
+			targets.append(choice.next)
+		for target in targets:
+			if target != "" and target != "@end" and not story.page_indices.has(target):
+				push_error("视觉小说：页 %s 找不到目标 %s" % [page.id, target])
+				return null
 	return story
 
 

@@ -58,26 +58,35 @@ var _page_style: StyleBoxFlat
 var _dot_styles: Array[StyleBoxFlat] = []
 var _close_tween: Tween
 var _open_serial := 0
+var _continuous := false
+var _history: Array[String] = []
+var _save_path := "user://vn-slot.json"
+@onready var _tools: HBoxContainer = $PageFrame/Page/Tools
+@onready var _choices: VBoxContainer = $PageFrame/Page/ChoiceScroll/Choices
+@onready var _archive: PanelContainer = $PageFrame/Archive
+@onready var _backdrop: TextureRect = $PageFrame/Page/Backdrop
+@onready var _portrait: TextureRect = $PageFrame/Page/Portrait
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
+	_button.focus_mode = Control.FOCUS_ALL
 	_button.pressed.connect(advance)
+	_tools.get_node("Auto").pressed.connect(_toggle_auto)
+	_tools.get_node("History").pressed.connect(_show_history)
+	_tools.get_node("Save").pressed.connect(_save_progress)
+	_tools.get_node("Load").pressed.connect(_load_progress)
+	_tools.get_node("Exit").pressed.connect(request_close)
+	_archive.get_node("Body/Back").pressed.connect(_hide_history)
 	_apply_body_font()
 
 
-## 正文 / 说话人统一用 fonts/ZhiMangXing.ttf。
-## 用 load_dynamic_font 直接读 ttf，不依赖 Godot 的导入缓存；
-## 换字体时把新 ttf 放进 fonts/，再改 BODY_FONT_PATH 即可。
+## 通过资源加载器读取字体，兼容编辑器和导出 PCK 的资源重映射。
 func _apply_body_font() -> void:
-	if not FileAccess.file_exists(BODY_FONT_PATH):
-		push_warning("视觉小说：找不到正文字体 %s，继续用默认字体" % BODY_FONT_PATH)
-		return
-	var font := FontFile.new()
-	var err := font.load_dynamic_font(BODY_FONT_PATH)
-	if err != OK:
-		push_error("视觉小说：正文字体加载失败 %s（错误码 %d）" % [BODY_FONT_PATH, err])
+	var font := load(BODY_FONT_PATH) as FontFile
+	if font == null:
+		push_warning("视觉小说：正文字体不可用")
 		return
 	# 这个手写体的空格很窄，占位数字 / 英文之间会粘在一起；用 FontVariation 加宽空格
 	var body_font := FontVariation.new()
@@ -88,13 +97,15 @@ func _apply_body_font() -> void:
 
 
 func _process(delta: float) -> void:
+	if not visible or _archive.visible or _closing:
+		return
 	if _phase == Phase.TYPING:
 		_type_progress += _type_speed * delta
 		if _type_progress >= float(_total_chars):
 			_finish_typing()
 		else:
 			_text.visible_characters = int(_type_progress)
-	elif _phase == Phase.HOLD and _auto_advance and not _transitioning:
+	elif _phase == Phase.HOLD and _auto_advance and not _transitioning and _choices.get_child_count() == 0:
 		_hold_left -= delta
 		if _hold_left <= 0.0:
 			_next_page()
@@ -106,6 +117,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	# 小说打开时吞掉所有未被界面处理的输入，避免 pause=false 时误触游戏快捷键
 	get_viewport().set_input_as_handled()
 	if event is InputEventKey and event.pressed and not event.echo:
+		if _archive.visible:
+			if event.keycode == KEY_ESCAPE:
+				_hide_history()
+			return
 		if event.keycode == KEY_ESCAPE:
 			request_close()
 		elif event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]:
@@ -130,6 +145,13 @@ func show_story(story: VnStory, options: Dictionary = {}) -> void:
 		_close_tween.kill()
 	_close_tween = null
 	_story = story
+	_history.clear()
+	_archive.hide()
+	_page.show()
+	_continuous = false
+	_tools.get_node("Auto").text = "自动"
+	_tools.get_node("Save").disabled = story.source_path.is_empty()
+	_tools.get_node("Load").disabled = story.source_path.is_empty()
 	_type_speed = maxf(0.0, float(options.get("typewriter_speed", DEFAULT_TYPE_SPEED)))
 	_auto_advance = bool(options.get("auto_advance", true))
 	_page_hold = maxf(0.0, float(options.get("page_hold", DEFAULT_PAGE_HOLD)))
@@ -139,6 +161,8 @@ func show_story(story: VnStory, options: Dictionary = {}) -> void:
 	_hold_left = 0.0
 	_button.disabled = false
 	visible = true
+	_button.show()
+	_button.grab_focus()
 
 	# 复制一份页面样式，改颜色不会影响场景里的原始资源
 	var base_style := _page.get_theme_stylebox("panel")
@@ -168,7 +192,7 @@ func show_story(story: VnStory, options: Dictionary = {}) -> void:
 
 ## 玩家点了蓝色按钮（或按了空格 / 回车）。
 func advance() -> void:
-	if not visible or _closing or _transitioning or _story == null:
+	if not visible or _closing or _transitioning or _story == null or _archive.visible:
 		return
 
 	match _phase:
@@ -213,14 +237,18 @@ func request_close() -> void:
 
 func _enter_page(index: int) -> void:
 	_page_index = index
+	_clear_choices()
 	_phase = Phase.IDLE
 	_hold_left = 0.0
 	_text.text = ""
 	_text.visible_characters = 0
 	_apply_page_style()
+	_display_art()
 	_refresh_dots()
 	_update_button()
 	page_changed.emit(_page_index, _story.pages.size())
+	if _continuous:
+		_start_typing()
 
 
 func _start_typing() -> void:
@@ -241,15 +269,26 @@ func _finish_typing() -> void:
 	_text.visible_characters = -1
 	_phase = Phase.HOLD
 	_hold_left = _page_hold
+	var page: Dictionary = _story.pages[_page_index]
+	var line: String = page.text
+	if not str(page.speaker).is_empty():
+		line = "%s　%s" % [page.speaker, line]
+	_history.append(line)
 	_update_speaker_visibility()
 	_update_button()
+	_build_choices()
 	text_finished.emit(_page_index)
 
 
 func _next_page() -> void:
 	if _phase == Phase.IDLE or _transitioning or _closing:   # 还没开始读 / 正在翻页
 		return
-	if _page_index + 1 < _story.pages.size():
+	if not _story.pages[_page_index].choices.is_empty():
+		return
+	var target: String = _story.pages[_page_index].next
+	if not target.is_empty():
+		_follow(target)
+	elif _page_index + 1 < _story.pages.size():
 		_goto_page(_page_index + 1)
 	else:
 		_finish_story()
@@ -258,10 +297,11 @@ func _next_page() -> void:
 func _goto_page(index: int) -> void:
 	_transitioning = true
 	_button.disabled = true
+	var serial := _open_serial
 	var tween := create_tween()
 	tween.tween_property(_content, "modulate:a", 0.0, 0.1)
 	await tween.finished
-	if _closing:
+	if _closing or serial != _open_serial:
 		return
 
 	_enter_page(index)
@@ -269,9 +309,11 @@ func _goto_page(index: int) -> void:
 	var tween_in := create_tween()
 	tween_in.tween_property(_content, "modulate:a", 1.0, 0.18)
 	await tween_in.finished
-	if _closing:
+	if _closing or serial != _open_serial:
 		return
 	_button.disabled = false
+	if _button.visible:
+		_button.grab_focus()
 	_transitioning = false
 
 
@@ -338,7 +380,8 @@ func _update_button() -> void:
 		return
 	if _idle_hint != null:
 		_idle_hint.visible = _phase == Phase.IDLE
-	var is_last_page := _page_index >= _story.pages.size() - 1
+	var page: Dictionary = _story.pages[_page_index]
+	var is_last_page: bool = page.next == "@end" or (page.next == "" and _page_index == _story.pages.size() - 1)
 
 	match _phase:
 		Phase.IDLE:
@@ -366,6 +409,142 @@ func _update_speaker_visibility() -> void:
 	var page: Dictionary = _story.pages[_page_index]
 	var has_speaker := not str(page.speaker).strip_edges().is_empty()
 	_speaker_label.visible = has_speaker and _phase != Phase.IDLE
+
+
+func _display_art() -> void:
+	var page: Dictionary = _story.pages[_page_index]
+	for pair in [[_backdrop, page.background], [_portrait, page.portrait]]:
+		var view: TextureRect = pair[0]
+		var path: String = pair[1]
+		view.texture = null
+		if not path.is_empty() and ResourceLoader.exists(path, "Texture2D"):
+			view.texture = load(path) as Texture2D
+		view.visible = view.texture != null
+	var illustrated := _backdrop.visible or _portrait.visible
+	_content.anchor_top = 0.55 if illustrated else 0.14
+	_content.anchor_bottom = 0.77
+	_content.offset_top = 10
+	_content.offset_bottom = 0
+	_content.anchor_right = 0.57 if not page.choices.is_empty() else 1.0
+	_speaker_label.add_theme_font_size_override("font_size", 36 if illustrated else 52)
+	_text.add_theme_font_size_override("normal_font_size", 40 if illustrated else 60)
+	_index_label.visible = not illustrated
+	_title_label.visible = not illustrated
+	_rule_top.visible = not illustrated
+
+
+func _clear_choices() -> void:
+	for child in _choices.get_children():
+		_choices.remove_child(child)
+		child.queue_free()
+	_choices.get_parent().hide()
+	_button.show()
+
+
+func _build_choices() -> void:
+	_clear_choices()
+	for choice in _story.pages[_page_index].choices:
+		var option := Button.new()
+		option.text = choice.text
+		option.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		option.pressed.connect(_select_choice.bind(choice))
+		_choices.add_child(option)
+	if _choices.get_child_count() > 0:
+		_choices.get_parent().show()
+		_button.hide()
+		_hint.text = "请选择路线"
+		_choices.get_child(0).grab_focus()
+
+
+func _select_choice(choice: Dictionary) -> void:
+	if _phase != Phase.HOLD or _transitioning or _closing or _archive.visible:
+		return
+	_history.append("› " + str(choice.text))
+	_follow(choice.next)
+
+
+func _follow(target: String) -> void:
+	if target == "@end":
+		_finish_story()
+	else:
+		_goto_page(_story.page_indices[target])
+
+
+func _toggle_auto() -> void:
+	if _closing or _transitioning:
+		return
+	_continuous = not _continuous
+	_auto_advance = _continuous
+	_tools.get_node("Auto").text = "自动 ✓" if _continuous else "自动"
+	_hold_left = _page_hold
+	if _continuous and _phase == Phase.IDLE and not _transitioning:
+		_start_typing()
+	else:
+		_update_button()
+	if _choices.get_child_count() > 0:
+		_hint.text = "请选择路线"
+
+
+func _show_history() -> void:
+	if _transitioning or _closing:
+		return
+	_page.hide()
+	_archive.show()
+	var transcript: RichTextLabel = _archive.get_node("Body/Log")
+	transcript.text = "\n\n".join(_history) if not _history.is_empty() else "尚无已读对白"
+	_archive.get_node("Body/Back").grab_focus()
+
+
+func _hide_history() -> void:
+	_archive.hide()
+	_page.show()
+	_tools.get_node("History").grab_focus()
+
+
+func _save_progress() -> void:
+	if _story.source_path.is_empty() or _transitioning or _closing:
+		return
+	var state := {"version": 1, "story": _story.source_path, "revision": _story.revision,
+		"page": _story.pages[_page_index].id, "read": _phase == Phase.HOLD, "history": _history}
+	var file := FileAccess.open(_save_path + ".tmp", FileAccess.WRITE)
+	if file == null:
+		_hint.text = "存档写入失败"
+		return
+	file.store_string(JSON.stringify(state))
+	file.flush()
+	var err := file.get_error()
+	file.close()
+	if err == OK:
+		err = DirAccess.rename_absolute(_save_path + ".tmp", _save_path)
+	_hint.text = "进度已保存" if err == OK else "存档写入失败"
+
+
+func _load_progress() -> void:
+	if _story.source_path.is_empty() or _transitioning or _closing:
+		return
+	if not FileAccess.file_exists(_save_path):
+		_hint.text = "尚无存档"
+		return
+	var state = JSON.parse_string(FileAccess.get_file_as_string(_save_path))
+	if not state is Dictionary or state.get("version") != 1 or state.get("story") != _story.source_path or state.get("revision") != _story.revision:
+		_hint.text = "存档损坏，或不属于当前版本的剧本"
+		return
+	if not state.get("page") is String or not _story.page_indices.has(state.page) or not state.get("history") is Array or not state.get("read") is bool:
+		_hint.text = "存档内容无效"
+		return
+	for line in state.history:
+		if not line is String:
+			_hint.text = "存档记录无效"
+			return
+	_continuous = false
+	_auto_advance = false
+	_tools.get_node("Auto").text = "自动"
+	_enter_page(_story.page_indices[state.page])
+	if state.read:
+		_text.text = _story.pages[_page_index].text
+		_finish_typing()
+	_history.assign(state.history)
+	_hint.text = "进度已恢复"
 
 
 func _ink_for(bg: Color) -> Color:

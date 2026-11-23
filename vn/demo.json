@@ -1,0 +1,41 @@
+{
+  "title": "剧情试玩",
+  "pages": [
+    {
+      "id": "start",
+      "background": "res://opening/02_shattered_land.png",
+      "portrait": "res://vn/portrait.png",
+      "speaker": "角色 A",
+      "text": "测试对白。请选择一条路线。",
+      "choices": [
+        {
+          "text": "路线 A",
+          "next": "a"
+        },
+        {
+          "text": "路线 B",
+          "next": "b"
+        }
+      ]
+    },
+    {
+      "id": "a",
+      "background": "res://opening/01_whole_land.png",
+      "speaker": "角色 A",
+      "text": "路线 A · 对白测试",
+      "next": "end"
+    },
+    {
+      "id": "b",
+      "background": "res://opening/03_red_tide.png",
+      "speaker": "角色 B",
+      "text": "路线 B · 对白测试",
+      "next": "end"
+    },
+    {
+      "id": "end",
+      "speaker": "旁白",
+      "text": "试玩结束。"
+    }
+  ]
+}
