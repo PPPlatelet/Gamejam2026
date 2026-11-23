@@ -1,4 +1,4 @@
-extends Control
+﻿extends Control
 
 ## 关卡开始动画：先出关卡名，然后横向卷轴从左往右铺开，
 ## 纸窗里一点点露出已经布好的地图（带网格，方便认格子）；铺开完卷轴和暗场一起淡出。
@@ -9,7 +9,7 @@ extends Control
 
 signal finished
 
-const TITLE_FONT := preload("res://fonts/ZhiMangXing.ttf")
+var _title_font: Font = SongFont.make(500.0)
 const SCROLL_TEXTURE := preload("res://assets/opening/scroll_frame_wide.png")
 
 const TITLE_TEXT := "第一关"
@@ -70,9 +70,9 @@ func _build(view: Vector2) -> void:
 
 	_title = Label.new()
 	_title.text = TITLE_TEXT
-	_title.add_theme_font_override("font", TITLE_FONT)
+	_title.add_theme_font_override("font", _title_font)
 	_title.add_theme_font_size_override("font_size", 96)
-	_title.add_theme_color_override("font_color", Color(0.93, 0.89, 0.8))
+	_title.add_theme_color_override("font_color", Color(0.97, 0.96, 0.93))
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title.position = Vector2(0.0, view.y * 0.34)
 	_title.size = Vector2(view.x, 140.0)
@@ -82,9 +82,9 @@ func _build(view: Vector2) -> void:
 
 	_subtitle = Label.new()
 	_subtitle.text = SUBTITLE_TEXT
-	_subtitle.add_theme_font_override("font", TITLE_FONT)
+	_subtitle.add_theme_font_override("font", _title_font)
 	_subtitle.add_theme_font_size_override("font_size", 34)
-	_subtitle.add_theme_color_override("font_color", Color(0.72, 0.68, 0.6))
+	_subtitle.add_theme_color_override("font_color", Color(0.86, 0.84, 0.79))
 	_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_subtitle.position = Vector2(0.0, view.y * 0.34 + 130.0)
 	_subtitle.size = Vector2(view.x, 50.0)
@@ -94,9 +94,9 @@ func _build(view: Vector2) -> void:
 
 	_hint = Label.new()
 	_hint.text = "点击 / 空格 跳过"
-	_hint.add_theme_font_override("font", TITLE_FONT)
+	_hint.add_theme_font_override("font", _title_font)
 	_hint.add_theme_font_size_override("font_size", 22)
-	_hint.add_theme_color_override("font_color", Color(0.75, 0.8, 0.82, 0.45))
+	_hint.add_theme_color_override("font_color", Color(0.8, 0.83, 0.85, 0.5))
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_hint.position = view - Vector2(300.0, 56.0)
 	_hint.size = Vector2(260.0, 36.0)
