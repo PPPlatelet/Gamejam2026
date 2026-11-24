@@ -32,6 +32,7 @@
 | `assets/ui/ink_button.png` | 团队成员提供（2026-11-23，源文件 `水墨按键.psd`） | 左侧放船按钮的墨迹底图 |
 | `assets/ships/*.png` | 团队成员提供（2026-11-24，源文件 `哨船.psd` / `火箭船.psd` / `火炮船.psd`） | 三种我方船的船图（PSD 合成后抠白底） |
 | `assets/fx/*.png` | 团队成员提供（2026-11-24，从特效图集裁切） | 炮弹、爆炸、沉船的水墨特效 |
+| `assets/base/dock_*.png` | 团队成员提供（2026-11-24，源文件 `简单船坞.psd` / `轻度破损船坞.psd` / `中度破损船坞.psd` / `废墟船坞.psd`） | 基地船坞的四个血量档位 |
 | `assets/占位素材/*.png` | 本项目自产（AI 编写脚本 + 程序化绘制） | 由 `tools/make_placeholder_art.py`（Pillow）绘制的占位图；`tower_base.png`、`tower_turret.png` 已随旧塔删除而不再使用 |
 | `docs/images/*.png` | 本项目自产 | 游戏运行截图 |
 | `vn/first_level.json` | 本项目自产 | 剧情脚本（当前为空文件，待填写） |
