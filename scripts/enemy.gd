@@ -1,4 +1,4 @@
-class_name Enemy
+﻿class_name Enemy
 extends Node2D
 
 ## 敌人：沿格子中心连成的折线前进，有血量；会被减速、燃烧，也会伤害附近的单位。
@@ -14,6 +14,8 @@ signal died(enemy: Enemy)
 
 const HexBoardClass := preload("res://scripts/hex_board.gd")
 const BOOM_SCENE := preload("res://scenes/entities/boom.tscn")
+const FX_SMOKE := preload("res://assets/fx/smoke.png")
+const FX_BURST := preload("res://assets/fx/burst.png")
 
 enum Type { SMALL, SWORD, CHARGE, BOMB }
 
@@ -356,6 +358,7 @@ func _explode() -> void:
 	boom.radius = explode_radius
 	get_parent().add_child(boom)
 	boom.position = center
+	Fx.play(get_parent(), center, FX_BURST, explode_radius * 1.6, 0.55, 0.5)
 	_die()
 
 
@@ -388,6 +391,7 @@ func _die() -> void:
 	_done = true
 	remove_from_group("enemies")
 	set_process(false)
+	Fx.play(get_parent(), position, FX_SMOKE, 1.3, 0.45, 0.6)
 	died.emit(self)
 	var tween := create_tween()
 	tween.tween_property(self, "scale", Vector2(1.35, 1.35), 0.18)

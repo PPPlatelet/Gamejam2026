@@ -88,7 +88,7 @@ godot --headless --export-release "Windows Desktop" "build/Gamejam2026.exe"
 ## 目录结构
 
 ```
-assets/          地图底图、开场插画、占位素材
+assets/          地图底图、船图（ships/）、水墨特效（fx/）、按钮素材
 docs/            开发说明、截图、开发者日志
 fonts/           字体：Noto Serif SC（界面）与 ZhiMangXing（字幕）
 opening/         开场插画
