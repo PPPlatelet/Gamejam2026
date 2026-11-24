@@ -13,6 +13,14 @@ const UNIT_SCENE := preload("res://scenes/entities/unit.tscn")
 const UnitClass := preload("res://scripts/unit.gd")
 const OBSTACLE_SCENE := preload("res://scenes/entities/obstacle.tscn")
 const BASE_SCENE := preload("res://scenes/entities/base.tscn")
+const DOCK_TEXTURES: Array[Texture2D] = [
+	preload("res://assets/base/dock_1.png"),
+	preload("res://assets/base/dock_2.png"),
+	preload("res://assets/base/dock_3.png"),
+	preload("res://assets/base/dock_4.png"),
+]
+const DOCK_WIDTH := 4.6
+const FX_SPLASH := preload("res://assets/fx/splash.png")
 
 ## 第一关的剧情文件；换关卡时改这里，或者直接调 VN.open_file("res://vn/xxx.json")。
 const VN_STORY_PATH := "res://vn/first_level.json"
@@ -53,10 +61,12 @@ const STORY_OVERLAY_SCENE := preload("res://scenes/story_overlay.tscn")
 @export var wave_scale := 1.0
 ## 敌人统一从这个格子出生（列, 行，从 0 开始）。棋盘上被删掉/挡住时会自动就近找一个。
 @export var spawn_cell := Vector2i(17, 3)
+## 基地（船坞）所在格：列, 行，从 0 开始。默认 F5。
+@export var base_cell := Vector2i(5, 4)
 
 @export_group("格子")
 ## 直接删掉的格子编号区间，编号沿用旧的「行 × 列数 + 列 + 1」行优先编号。
-@export var removed_cell_ranges := [[1, 60], [74, 77], [91, 92], [109, 111], [127, 127]]
+@export var removed_cell_ranges := [[1, 60], [73, 73], [74, 77], [91, 93], [109, 110], [127, 127]]
 ## 删完之后再补回来的格子（列, 行，从 0 开始）。
 ## 当前补的是 I4~R4 上面一行（I3~R3）+ A9 上方一格（A8）+ B8 上方一格（B7）。
 @export var restored_cells: Array[Vector2i] = [
@@ -122,6 +132,11 @@ var _spawned_total := 0
 var _units_lost := 0
 var _elapsed := 0.0
 var _intro_playing := false
+var _base_sprite: Sprite2D
+var _dock_index := -1
+var _press_unit_cell := Vector2i(-1, -1)
+var _press_mouse := Vector2.ZERO
+var _press_dragged := false
 
 
 func _ready() -> void:
@@ -223,6 +238,10 @@ func _unhandled_input(event: InputEvent) -> void:
 					_update_drag()
 		else:
 			_update_hover()
+			if _press_unit_cell != Vector2i(-1, -1) and not _press_dragged:
+				var mouse_local: Vector2 = _board_view.to_local(get_global_mouse_position())
+				if mouse_local.distance_to(_press_mouse) > 0.3:
+					_press_dragged = true
 	elif event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if _placing:
@@ -235,6 +254,11 @@ func _unhandled_input(event: InputEvent) -> void:
 					_on_left_released()
 			elif event.pressed:
 				_handle_left_click(_mouse_cell())
+				_press_unit_cell = _selected_unit_cell
+				_press_mouse = _board_view.to_local(get_global_mouse_position())
+				_press_dragged = false
+			else:
+				_on_click_released()
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			if _placing:
 				_cancel_place_mode()
@@ -310,7 +334,7 @@ func _build_board() -> void:
 		rows = maxi(5, floori((area.y - 2.0 * target_hex_radius) / cell_height) + 1)
 
 	board = HexBoardClass.new(columns, rows)
-	board.base_cell = Vector2i(0, rows - 1)
+	board.base_cell = base_cell
 	board.spawn_cells = []
 
 
@@ -381,6 +405,48 @@ func _add_base_marker() -> void:
 	var marker: Node2D = BASE_SCENE.instantiate()
 	marker.position = board.cell_center(board.base_cell)
 	_board_view.add_child(marker)
+	_base_sprite = marker.get_node_or_null("Sprite") as Sprite2D
+	_dock_index = -1
+	_apply_dock(_dock_index_for_hp(_base_hp), false)
+
+
+## 船坞按血量分四档：完整 / 轻度破损 / 中度破损 / 废墟。
+func _dock_index_for_hp(hp: int) -> int:
+	var ratio := clampf(float(hp) / float(base_max_hp), 0.0, 1.0)
+	if ratio > 0.75:
+		return 0
+	if ratio > 0.5:
+		return 1
+	if ratio > 0.2:
+		return 2
+	return 3
+
+
+func _apply_dock(index: int, animate := true) -> void:
+	if _base_sprite == null or index == _dock_index:
+		return
+	_dock_index = index
+	var texture: Texture2D = DOCK_TEXTURES[clampi(index, 0, DOCK_TEXTURES.size() - 1)]
+	_base_sprite.texture = texture
+	var factor := DOCK_WIDTH / maxf(1.0, float(texture.get_width()))
+	_base_sprite.scale = Vector2(factor, factor)
+	if animate:
+		_base_sprite.position = Vector2.ZERO
+		var tween := create_tween()
+		tween.tween_property(_base_sprite, "scale", Vector2.ONE * factor * 1.08, 0.08)
+		tween.tween_property(_base_sprite, "scale", Vector2.ONE * factor, 0.22)
+		Fx.play(_board_view, board.cell_center(board.base_cell), FX_SPLASH, 2.4, 0.4, 0.5)
+		_shake_base()
+
+
+func _shake_base() -> void:
+	if _base_sprite == null:
+		return
+	var home: Vector2 = _base_sprite.position
+	var tween := create_tween()
+	tween.tween_property(_base_sprite, "position", home + Vector2(0.06, 0.0), 0.05)
+	tween.tween_property(_base_sprite, "position", home - Vector2(0.05, 0.02), 0.05)
+	tween.tween_property(_base_sprite, "position", home, 0.06)
 
 
 func _add_obstacles() -> void:
@@ -508,6 +574,14 @@ func _on_unit_died(unit) -> void:
 # ---------------------------------------------------------------- 点选移动
 
 ## 左键：点单位选中（正在移动的也能点），再点空格移动；点空格放塔。
+func _on_click_released() -> void:
+	# 按住我方单位拖了一下再松手：取消选择，不留选中状态。
+	if _press_unit_cell != Vector2i(-1, -1) and _press_dragged:
+		_select_tower(Vector2i(-1, -1))
+	_press_unit_cell = Vector2i(-1, -1)
+	_press_dragged = false
+
+
 func _handle_left_click(cell: Vector2i) -> void:
 	# 正在移动的单位不在格心，用距离判断有没有点中它。
 	var clicked_unit = _unit_at_mouse()
@@ -1158,6 +1232,7 @@ func _on_enemy_reached(enemy) -> void:
 	_enemies.erase(enemy)
 	_reached += 1
 	_base_hp = maxi(0, _base_hp - 1)
+	_apply_dock(_dock_index_for_hp(_base_hp), true)
 	enemy.queue_free()
 	_update_stats()
 	if _base_hp <= 0:
