@@ -156,7 +156,7 @@ func accepts_save(state: Dictionary) -> bool:
 	for line in state.history:
 		if not line is String:
 			return false
-	if state.version == 1:
+	if state.version == 1 and not state.has("route"):
 		return true
 	var route = state.get("route")
 	if not route is Array or route.is_empty():

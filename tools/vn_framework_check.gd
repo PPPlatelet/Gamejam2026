@@ -107,6 +107,11 @@ func _run() -> void:
 	check(not vn.load_game("3") and layer.snapshot() == before, "坏档不更改正在阅读的内容")
 	var legacy := before.duplicate(true)
 	legacy.version = 1
+	legacy.route = "broken"
+	vn.storage.write_slot("3", legacy)
+	var resume_before: Dictionary = vn.storage.read_slot("resume")
+	check(not vn.load_game("3") and layer.snapshot() == before and vn.storage.read_slot("resume") == resume_before,
+		"旧格式的损坏路线会被拒绝并保留阅读状态和继续点")
 	legacy.erase("route")
 	vn.storage.write_slot("1", legacy)
 	check(vn.load_game("1") and layer._history.size() == 3, "兼容第一版单槽存档")
@@ -142,6 +147,32 @@ func _run() -> void:
 	check(vn.current_page() == 3 and layer._choices.get_child_count() == 1, "前进精确停在下一选项")
 	layer.navigate("prev_scene")
 	check(vn.current_page() == 0, "跨场景回到前一场的开头")
+	await _check_dialogue_scroll()
 	check(vn.load_game("2") and vn.save_game("resume"), "保存跨进程检查点")
 	print("VN_FRAMEWORK_FAILED" if failed else "VN_FRAMEWORK_OK")
 	quit(1 if failed else 0)
+
+func _check_dialogue_scroll() -> void:
+	root.size = Vector2i(1920, 1080)
+	var page := {"id": "long", "background": "res://vn/portrait.png", "speaker": "测试",
+		"text": "这是用于验证图文分支排版的一行文字。".repeat(4),
+		"choices": [{"text": "继续", "next": "short"}]}
+	vn.open({"pages": [page, {"id": "short", "text": "短句"}]}, {"auto_advance": false})
+	layer._reveal()
+	await process_frame
+	await process_frame
+	var text_box: RichTextLabel = layer._text
+	var bar := text_box.get_v_scroll_bar()
+	check(layer._content.get_global_rect().encloses(text_box.get_global_rect()) and bar.is_visible_in_tree()
+		and bar.max_value > bar.page, "图文分支长对白的滚动区域完全位于正文框内")
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+	wheel.position = text_box.get_global_rect().get_center()
+	wheel.pressed = true
+	for i in 12:
+		root.push_input(wheel, true)
+	await process_frame
+	check(bar.value > 0 and is_equal_approx(bar.value + bar.page, bar.max_value), "滚动到底可阅读末行")
+	layer._choices.get_child(0).pressed.emit()
+	await create_timer(0.4).timeout
+	check(vn.current_page() == 1 and is_zero_approx(bar.value), "滚动后仍可选择分支，下一页从顶部开始")

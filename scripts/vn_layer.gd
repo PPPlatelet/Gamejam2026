@@ -294,6 +294,7 @@ func _enter_page(index: int) -> void:
 	_phase = Phase.IDLE
 	_hold_left = 0.0
 	_text.text = ""
+	_text.get_v_scroll_bar().value = 0
 	_text.visible_characters = 0
 	_apply_page_style()
 	_display_art()
