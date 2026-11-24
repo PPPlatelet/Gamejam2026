@@ -1,10 +1,12 @@
-extends Node2D
+﻿extends Node2D
 
 ## 炮弹：
 ##   火箭 —— 单体伤害，命中后让敌人持续燃烧。
 ##   炮船炮弹 —— 落地范围伤害，有概率对主目标一击必杀。
 
 const BOOM_SCENE := preload("res://scenes/entities/boom.tscn")
+const FX_BURST := preload("res://assets/fx/burst.png")
+const FX_DROPS := preload("res://assets/fx/drops.png")
 
 enum Kind { ROCKET, SHELL }
 
@@ -58,6 +60,7 @@ func _hit() -> void:
 		if is_instance_valid(_target):
 			_target.take_damage(_damage)
 			_target.apply_burn(_burn_dps, _burn_time)
+			Fx.play(get_parent(), _target.position, FX_DROPS, 0.95, 0.7, 0.35)
 	else:
 		var impact: Vector2 = _target.position
 		if is_instance_valid(_target) and randf() < _instakill:
@@ -70,6 +73,7 @@ func _hit() -> void:
 		boom.radius = _aoe_radius
 		get_parent().add_child(boom)
 		boom.position = impact
+		Fx.play(get_parent(), impact, FX_BURST, _aoe_radius * 1.5, 0.5, 0.45)
 	queue_free()
 
 

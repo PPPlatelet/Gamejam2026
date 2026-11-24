@@ -1,4 +1,4 @@
-class_name Unit
+﻿class_name Unit
 extends Node2D
 
 ## 三种船（占位图：三个颜色的方块）。
@@ -50,12 +50,23 @@ const STATS := {
 }
 
 const PROJECTILE_SCENE := preload("res://scenes/entities/projectile.tscn")
+const SHIP_TEXTURES := {
+	Type.SENTRY: preload("res://assets/ships/sentry.png"),
+	Type.ROCKET: preload("res://assets/ships/rocket.png"),
+	Type.CANNON: preload("res://assets/ships/cannon.png"),
+}
+## 各船在棋盘上的显示宽度（格）。
+const SHIP_WIDTHS := {
+	Type.SENTRY: 1.55,
+	Type.ROCKET: 1.85,
+	Type.CANNON: 1.95,
+}
 const SQUARE_SIZE := 0.92
 const STEP_TRAVEL_SPEED := 4.5   # 单位/秒，逐格移动的行进速度
 const STEP_PAUSE := 0.4          # 每走到一格停多久
 const BAR_WIDTH := 0.86
 const BAR_HEIGHT := 0.10
-const BAR_TOP := -0.64
+const BAR_TOP := -0.92
 
 var unit_type := Type.SENTRY
 var stats: Dictionary = {}
@@ -76,10 +87,17 @@ var _flash_time := 0.0
 var _stun_time := 0.0
 var _burn_time := 0.0
 var _burn_dps := 0.0
+var _ship: Sprite2D
+var _bob_time := 0.0
 
 
 func _ready() -> void:
 	add_to_group("units")
+	_ship = Sprite2D.new()
+	_ship.centered = true
+	_ship.position = Vector2(0.0, -0.05)
+	add_child(_ship)
+	_refresh_ship()
 
 
 func setup(type: Type) -> void:
@@ -88,12 +106,29 @@ func setup(type: Type) -> void:
 	cost = stats.cost
 	max_hp = stats.hp
 	hp = max_hp
+	_refresh_ship()
 	queue_redraw()
+
+
+## 换上对应的船图，按格宽缩放。
+func _refresh_ship() -> void:
+	if _ship == null:
+		return
+	var texture: Texture2D = SHIP_TEXTURES.get(unit_type)
+	if texture == null:
+		return
+	_ship.texture = texture
+	var width: float = SHIP_WIDTHS.get(unit_type, 1.6)
+	var factor := width / float(texture.get_width())
+	_ship.scale = Vector2(factor, factor)
 
 
 func _process(delta: float) -> void:
 	if _dead:
 		return
+	_bob_time += delta
+	if _ship != null:
+		_ship.position.y = -0.05 + sin(_bob_time * 2.2) * 0.02
 	if _flash_time > 0.0:
 		_flash_time -= delta
 		if _flash_time <= 0.0:
@@ -265,11 +300,8 @@ func _draw() -> void:
 	var half := SQUARE_SIZE * 0.5
 
 	if unit_type == Type.SENTRY:
-		draw_circle(Vector2.ZERO, stats.range, Color(color.r, color.g, color.b, 0.07))
-		draw_arc(Vector2.ZERO, stats.range, 0.0, TAU, 64, Color(color.r, color.g, color.b, 0.35), 0.04, true)
-
-	draw_rect(Rect2(-half, -half, SQUARE_SIZE, SQUARE_SIZE), color)
-	draw_rect(Rect2(-half, -half, SQUARE_SIZE, SQUARE_SIZE), color.darkened(0.45), false, 0.06)
+		draw_circle(Vector2.ZERO, stats.range, Color(color.r, color.g, color.b, 0.06))
+		draw_arc(Vector2.ZERO, stats.range, 0.0, TAU, 64, Color(color.r, color.g, color.b, 0.3), 0.04, true)
 
 	if hp < max_hp:
 		var ratio := clampf(hp / max_hp, 0.0, 1.0)
