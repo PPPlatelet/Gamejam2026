@@ -1,4 +1,4 @@
-class_name HexBoard
+﻿class_name HexBoard
 extends RefCounted
 
 ## 尖顶朝上的六边形棋盘，使用 odd-r 偏移坐标（列, 行）。
@@ -102,7 +102,7 @@ func neighbors(cell: Vector2i) -> Array[Vector2i]:
 
 
 func to_cube(cell: Vector2i) -> Vector3i:
-	var q := cell.x - (cell.y - (cell.y & 1)) / 2
+	var q := cell.x - int((cell.y - (cell.y & 1)) / 2.0)
 	return Vector3i(q, cell.y, -q - cell.y)
 
 
@@ -123,7 +123,7 @@ func world_to_cell(local_position: Vector2) -> Vector2i:
 	var q := (sqrt(3.0) / 3.0) * p.x - p.y / 3.0
 	var r := (2.0 / 3.0) * p.y
 	var axial := _cube_round(q, r)
-	var column := axial.x + (axial.y - (axial.y & 1)) / 2
+	var column := axial.x + int((axial.y - (axial.y & 1)) / 2.0)
 	return Vector2i(column, axial.y)
 
 

@@ -1,13 +1,14 @@
-# AI 使用与素材声明（CREDITS）
+﻿# AI 使用与素材声明（CREDITS）
 
 本文件同时作为比赛要求的《AI 使用与素材声明》，记录本仓库第三方素材、团队素材的来源与授权，以及 AI 工具的使用范围与人工修改情况。
-最后更新：2026-11-22（素材来源已由团队成员确认）
+最后更新：2026-11-23（新增 Noto Serif SC 宋体，素材来源已由团队成员确认）
 
 ## 一、第三方素材
 
 | 文件 | 作者 / 来源 | 许可证 | 署名与义务 | 用途 |
 |---|---|---|---|---|
-| `fonts/ZhiMangXing.ttf` | Zhi Mang Xing Project Authors，Google Fonts（<https://fonts.google.com/specimen/Zhi+Mang+Xing>） | SIL Open Font License 1.1，全文见 `fonts/OFL.txt` | 分发时随附 OFL 许可证与版权声明；字体本身不得单独售卖；衍生字体不得使用保留字体名 | 游戏内剧情字幕 |
+| `fonts/ZhiMangXing.ttf` | Zhi Mang Xing Project Authors，Google Fonts（<https://fonts.google.com/specimen/Zhi+Mang+Xing>） | SIL Open Font License 1.1，全文见 `fonts/OFL.txt` | 分发时随附 OFL 许可证与版权声明；字体本身不得单独售卖；衍生字体不得使用保留字体名 | 剧情字幕用（界面自 2026-11-23 起为宋体，字幕保留这个手写体） |
+| `fonts/NotoSerifSC-VF.ttf` | Noto Serif SC（思源宋体），Adobe / Google（<https://fonts.google.com/noto/specimen/Noto+Serif+SC>） | SIL Open Font License 1.1，全文见 `fonts/NotoSerifSC-OFL.txt` | 分发时随附 OFL 许可证与版权声明；字体本身不得单独售卖；衍生字体不得使用保留字体名 | 界面、剧情字幕、关卡标题的宋体（可变字体，按 400/500 字重取实例） |
 | `icon.svg` | Godot Engine logo，Copyright 2017 Andrea Calabró | CC BY 4.0（<https://github.com/godotengine/godot/blob/master/LOGO_LICENSE.md>） | 署名 "Godot Engine logo © 2017 Andrea Calabró, CC BY 4.0" | 项目图标（Godot 默认图标） |
 
 ## 二、引擎与第三方代码
@@ -24,6 +25,15 @@
 | `assets/The_Lands/图层 1.png` ～ `图层 9.png` | 团队成员**自绘**（2026-11-22 确认） | 分层地图素材，当前未在场景中引用 |
 | `assets/The_Lands/sea_map.png` | 团队成员**自绘**（2026-11-22 确认） | 海面预览图，仅用于 `scenes/preview_sea.tscn`，未接入正式关卡 |
 | `assets/opening/*.png`、`opening/*.png` | 当前为 **DSH 生成**的临时版本（2026-11-22 确认） | 开场插画；计划替换为团队自绘版本，替换后更新本表 |
+| `assets/opening/scroll.png` | 团队成员提供（2026-11-23，源文件 `卷轴.psd`） | 开场动画的卷轴底图，白底已扣成透明 |
+| `assets/opening/scroll_frame.png` | 同上，由 `scroll.png` 加工 | 纸窗版卷轴：内部半透明，用于关卡开场时露出地图 |
+| `assets/opening/scroll_frame_wide.png` | 同上，由 `scroll_frame.png` 旋转 90° | 旧的横向卷轴纸窗素材，2026-11-25 起改用下面这张，文件保留备用 |
+| `assets/opening/scroll_frame_ink.png` | 按团队提供的卷轴动画参考片（2026-11-25，1.4 秒）重制：AI 生成静态水墨卷轴图，再由脚本加工：卷轴外压纯黑、轴体与边条染宣纸色、纸窗做成半透明薄纱 | 关卡开场的横版卷轴（当前使用）；纸窗外留纯黑底、纸窗为宣纸色薄纱，地图从纸窗里透出来 |
+| `assets/ui/cell_marker.png` | 团队成员提供（2026-11-23） | 放置单位时的青色六边形描边 |
+| `assets/ui/ink_button.png` | 团队成员提供（2026-11-23，源文件 `水墨按键.psd`） | 左侧放船按钮的墨迹底图 |
+| `assets/ships/*.png` | 团队成员提供（2026-11-24，源文件 `哨船.psd` / `火箭船.psd` / `火炮船.psd`） | 三种我方船的船图（PSD 合成后抠白底） |
+| `assets/fx/*.png` | 团队成员提供（2026-11-24，从特效图集裁切） | 炮弹、爆炸、沉船的水墨特效 |
+| `assets/base/dock_*.png` | 团队成员提供（2026-11-24，源文件 `简单船坞.psd` / `轻度破损船坞.psd` / `中度破损船坞.psd` / `废墟船坞.psd`） | 基地船坞的四个血量档位 |
 | `assets/占位素材/*.png` | 本项目自产（AI 编写脚本 + 程序化绘制） | 由 `tools/make_placeholder_art.py`（Pillow）绘制的占位图；`tower_base.png`、`tower_turret.png` 已随旧塔删除而不再使用 |
 | `docs/images/*.png` | 本项目自产 | 游戏运行截图 |
 | `vn/first_level.json` | 本项目自产 | 剧情脚本（当前为空文件，待填写） |
@@ -37,17 +47,18 @@
   - GDScript 玩法代码、场景与节点结构、导出配置；
   - 占位美术的生成脚本（`tools/make_placeholder_art.py`，用 Pillow 程序化绘制）及其输出的占位图；
   - 开场插画的临时版本（后续替换为自绘）；
+  - 关卡开场的水墨卷轴贴图（2026-11-25，按团队参考片重制，白纸透明化脚本处理）；
   - 剧情字幕的数据结构与文案初稿（`scripts/story_lines.gd`）；
   - 开发文档与运行截图；
   - 数值平衡的初版草案。
 - 人工完成的部分：需求定义、玩法取舍与验收、地图/海面等美术素材自绘、开场插画的最终自绘版本、数值与手感的实机调整、代码审阅与合并。
-- 未使用 AI 的内容：`fonts/ZhiMangXing.ttf`、`icon.svg`（第三方素材）、团队自绘素材（见第三节）。
+- 未使用 AI 的内容：`fonts/ZhiMangXing.ttf`、`fonts/NotoSerifSC-VF.ttf`、`icon.svg`（第三方素材）、团队自绘素材（见第三节）。
 
 ## 五、赛前已有内容申报
 
 - 代码与素材：本项目为本届比赛期间从零开发，未使用赛前完成的代码或美术素材。
 - 开发工具（赛前已有，非作品内容）：Godot Engine 4.7（开源引擎）、DeepSeek Harness 等 AI 辅助工具。
-- 第三方素材（赛前已有）：Zhi Mang Xing 字体、Godot 默认图标，授权见第一节。
+- 第三方素材（赛前已有）：Zhi Mang Xing 字体、Noto Serif SC（思源宋体）字体、Godot 默认图标，授权见第一节。
 
 ## 六、比赛要求对照
 

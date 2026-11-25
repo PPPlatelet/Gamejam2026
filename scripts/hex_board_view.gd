@@ -1,4 +1,4 @@
-class_name HexBoardView
+﻿class_name HexBoardView
 extends Node2D
 
 ## 把 HexBoard 画出来：基地 / 出生点底色 + 鼠标悬停高亮 + 敌人路线。
@@ -9,12 +9,11 @@ extends Node2D
 
 const HexBoardClass := preload("res://scripts/hex_board.gd")
 
-const LINE_COLOR := Color(0.78, 0.81, 0.85)
-const LINE_WIDTH := 0.035
+const HOVER_TEXTURE := preload("res://assets/ui/cell_marker.png")
+const LINE_COLOR := Color(0.32, 0.35, 0.40, 0.55)
+const LINE_WIDTH := 0.026
 const BASE_FILL := Color(0.30, 0.58, 0.95, 0.25)
 const SPAWN_FILL := Color(1.00, 0.45, 0.30, 0.18)
-const HOVER_OK := Color(0.25, 0.75, 0.40, 0.35)
-const HOVER_BAD := Color(0.90, 0.25, 0.25, 0.35)
 const SELECT_FILL := Color(1.00, 0.82, 0.25, 0.30)
 const SELECT_LINE := Color(1.00, 0.72, 0.10, 0.95)
 const PATH_COLOR := Color(0.15, 0.45, 0.95, 0.30)
@@ -33,50 +32,61 @@ var show_numbers := false        # H 键切换：每格显示序号（行 × 列
 var preview_paths: Array = []   # Array[PackedVector2Array]
 
 var show_grid := false           # 拖塔时显示网格
+var show_veil := false           # 显示网格时是否再铺一层淡白（放置/拖动才铺）
 var drag_cell := Vector2i(-1, -1)          # 塔当前压住的格子（第二个图）
 var drag_target_cell := Vector2i(-1, -1)   # 松手后的目标格（第三个图）
 var drag_target_valid := true
+var move_marker_cells: Array = []          # 正在移动的单位目的地（可能同时有好几个）
+var base_cells: Array = []                 # 基地占的格子（不画六边形）
 
 
 func _draw() -> void:
 	if board == null:
 		return
 
-	if show_grid:
+	if show_grid and show_veil:
 		for row in board.rows:
 			for column in board.columns:
 				var grid_cell := Vector2i(column, row)
-				if board.is_removed(grid_cell):
+				if board.is_removed(grid_cell) or grid_cell == board.base_cell or base_cells.has(grid_cell):
 					continue
 				draw_colored_polygon(board.cell_polygon(grid_cell), GRID_VEIL)
 
-	for row in board.rows:
-		for column in board.columns:
-			var cell := Vector2i(column, row)
-			if board.is_removed(cell):
-				continue
-			var fill := Color.TRANSPARENT
-			if cell == board.base_cell:
-				fill = BASE_FILL
-			elif board.spawn_cells.has(cell):
-				fill = SPAWN_FILL
-			if cell == selected_cell:
-				fill = SELECT_FILL
-			if cell == hover_cell:
-				fill = HOVER_OK if hover_valid else HOVER_BAD
-			if fill.a > 0.0:
-				draw_colored_polygon(board.cell_polygon(cell, 0.985), fill)
+	# 没有网格的时候不画任何格子底色，避免露出六边形。
+	if show_grid:
+		for row in board.rows:
+			for column in board.columns:
+				var cell := Vector2i(column, row)
+				if board.is_removed(cell) or cell == board.base_cell or base_cells.has(cell):
+					continue
+				var fill := Color.TRANSPARENT
+				if cell == board.base_cell:
+					fill = BASE_FILL
+				elif board.spawn_cells.has(cell):
+					fill = SPAWN_FILL
+				if cell == selected_cell:
+					fill = SELECT_FILL
+				if fill.a > 0.0:
+					draw_colored_polygon(board.cell_polygon(cell, 0.985), fill)
 
 	if show_grid:
 		for row in board.rows:
 			for column in board.columns:
 				var line_cell := Vector2i(column, row)
-				if board.is_removed(line_cell):
+				if board.is_removed(line_cell) or line_cell == board.base_cell or base_cells.has(line_cell):
 					continue
 				var points := board.cell_polygon(line_cell, 0.985)
 				var closed := points.duplicate()
 				closed.append(points[0])
 				draw_polyline(closed, LINE_COLOR, LINE_WIDTH, true)
+
+	# 只在放置单位时出现：用户给的青色六边形描边，放到哪一格就画在哪一格。
+	if board.is_inside(hover_cell) and not board.is_removed(hover_cell):
+		var hover_center := board.cell_center(hover_cell)
+		var tint := Color.WHITE if hover_valid else Color(1.0, 0.4, 0.35)
+		var marker_size := Vector2(HexBoardClass.HEX_WIDTH, 2.0)
+		draw_texture_rect(HOVER_TEXTURE,
+			Rect2(hover_center - marker_size * 0.5, marker_size), false, tint)
 
 	if show_paths:
 		for path in preview_paths:
@@ -89,9 +99,6 @@ func _draw() -> void:
 		draw_polyline(selected_closed, SELECT_LINE, LINE_WIDTH * 2.4, true)
 
 	_draw_drag_marks()
-
-	for cell in board.spawn_cells:
-		_draw_spawn_arrow(cell)
 
 	if show_numbers:
 		_draw_numbers()
@@ -106,19 +113,27 @@ func _draw_drag_marks() -> void:
 		draw_colored_polygon(under_points, Color(DRAG_COLOR.r, DRAG_COLOR.g, DRAG_COLOR.b, 0.10))
 		draw_polyline(under_closed, DRAG_COLOR, 0.055, true)
 
-	if board.is_inside(drag_target_cell) and not board.is_removed(drag_target_cell):
-		var color := DRAG_COLOR if drag_target_valid else DRAG_BAD
-		var target_points := board.cell_polygon(drag_target_cell, 0.96)
-		var target_closed := target_points.duplicate()
-		target_closed.append(target_points[0])
-		draw_colored_polygon(target_points, Color(color.r, color.g, color.b, 0.12))
-		draw_polyline(target_closed, color, 0.06, true)
+	# 多个单位同时移动时，每个目的地都画一个蓝框。
+	for cell in move_marker_cells:
+		if board.is_inside(cell) and not board.is_removed(cell):
+			_draw_notched_cell(cell, DRAG_COLOR)
 
-		var center := board.cell_center(drag_target_cell)
-		for i in 6:
-			var vertex: Vector2 = target_points[i]
-			var outward := (vertex - center).normalized()
-			draw_line(vertex - outward * 0.05, vertex + outward * 0.10, color, 0.05, true)
+	if board.is_inside(drag_target_cell) and not board.is_removed(drag_target_cell):
+		_draw_notched_cell(drag_target_cell, DRAG_COLOR if drag_target_valid else DRAG_BAD)
+
+
+func _draw_notched_cell(cell: Vector2i, color: Color) -> void:
+	var points := board.cell_polygon(cell, 0.96)
+	var closed := points.duplicate()
+	closed.append(points[0])
+	draw_colored_polygon(points, Color(color.r, color.g, color.b, 0.12))
+	draw_polyline(closed, color, 0.06, true)
+
+	var center := board.cell_center(cell)
+	for i in 6:
+		var vertex: Vector2 = points[i]
+		var outward := (vertex - center).normalized()
+		draw_line(vertex - outward * 0.05, vertex + outward * 0.10, color, 0.05, true)
 
 
 ## 每格画一个编号：列字母 + 行号（A1、B3……），行从上往下 1 开始。
@@ -154,7 +169,7 @@ func _column_label(column: int) -> String:
 	var value := column
 	while true:
 		label = String.chr(65 + value % 26) + label
-		value = value / 26 - 1
+		value = int(value / 26.0) - 1
 		if value < 0:
 			break
 	return label

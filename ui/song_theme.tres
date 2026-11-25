@@ -1,0 +1,12 @@
+[gd_resource type="Theme" load_steps=3 format=3]
+
+[ext_resource type="FontFile" path="res://fonts/NotoSerifSC-VF.ttf" id="1_song"]
+
+[sub_resource type="FontVariation" id="FontVariation_song"]
+base_font = ExtResource("1_song")
+variation_opentype = {
+"wght": 400.0
+}
+
+[resource]
+default_font = SubResource("FontVariation_song")

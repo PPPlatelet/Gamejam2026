@@ -1,5 +1,5 @@
 ## 屏幕上的剧情字幕：一次显示一条，自动淡入淡出；多条触发时排队依次播。
-## 不用底色，黑字直接压在画面上，字体是 fonts/ZhiMangXing.ttf。
+## 不用底色，黑字直接压在画面上，字体沿用 fonts/ZhiMangXing.ttf。
 ## 位置、"出现在哪"由剧本里每条的 "where" 决定：top / center / bottom / left / right。
 
 extends Control
