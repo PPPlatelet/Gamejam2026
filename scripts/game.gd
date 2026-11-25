@@ -1,4 +1,4 @@
-extends Node2D
+﻿extends Node2D
 
 ## 六边形塔防 · 框架
 ##
@@ -13,6 +13,17 @@ const UNIT_SCENE := preload("res://scenes/entities/unit.tscn")
 const UnitClass := preload("res://scripts/unit.gd")
 const OBSTACLE_SCENE := preload("res://scenes/entities/obstacle.tscn")
 const BASE_SCENE := preload("res://scenes/entities/base.tscn")
+const DOCK_TEXTURES: Array[Texture2D] = [
+	preload("res://assets/base/dock_1.png"),
+	preload("res://assets/base/dock_2.png"),
+	preload("res://assets/base/dock_3.png"),
+	preload("res://assets/base/dock_4.png"),
+]
+const DOCK_WIDTH := 6.4
+const REPAIR_HP_PER_SECOND := 14.0
+const REPAIR_SUPPLY_PER_SECOND := 2.0
+const FX_SPLASH := preload("res://assets/fx/splash.png")
+const DOCK_WATER_SHADER := preload("res://assets/base/dock_water.gdshader")
 
 ## 第一关的剧情文件；换关卡时改这里，或者直接调 VN.open_file("res://vn/xxx.json")。
 const VN_STORY_PATH := "res://vn/first_level.json"
@@ -24,17 +35,18 @@ const HexBoardClass := preload("res://scripts/hex_board.gd")
 const StoryLines := preload("res://scripts/story_lines.gd")
 const SpawnWaves := preload("res://scripts/spawn_waves.gd")
 const LEVEL_INTRO_SCENE := preload("res://scenes/level_intro.tscn")
+const INK_BUTTON_TEXTURE := preload("res://assets/ui/ink_button.png")
 const STORY_OVERLAY_SCENE := preload("res://scenes/story_overlay.tscn")
 
 @export_group("屏幕适配")
 ## 打开后按窗口大小自动算格子数；关掉就用下面两个固定值。
-@export var auto_fit_screen := true
+@export var auto_fit_screen := false
 ## 每格的目标半径（逻辑像素），越小格子越多。
-@export var target_hex_radius := 60.0
-@export var fixed_columns := 17
+@export var target_hex_radius := 64.0
+@export var fixed_columns := 18
 @export var fixed_rows := 10
 ## 棋盘四周留白占短边的比例。
-@export var margin_ratio := 0.03
+@export var margin_ratio := 0.0
 ## 顶部预留高度（没有顶部 UI 时保持 0，棋盘就能铺满全屏）。
 @export var hud_height := 0.0
 
@@ -43,7 +55,7 @@ const STORY_OVERLAY_SCENE := preload("res://scenes/story_overlay.tscn")
 @export var base_max_hp := 20
 ## 每个敌人的血量；船的数值见 scripts/unit.gd。
 @export var enemy_max_hp := 40.0
-@export var obstacle_count := 7
+@export var obstacle_count := 0
 @export var enemy_speed_cells := 1.0
 @export var level_seed := 20261122
 ## 一局时长（秒）：撑到这时候且基地还在，就判胜利。
@@ -51,17 +63,27 @@ const STORY_OVERLAY_SCENE := preload("res://scenes/story_overlay.tscn")
 ## 剧本出兵数量倍率：调难度用，1.0 就是剧本原样。
 @export var wave_scale := 1.0
 ## 敌人统一从这个格子出生（列, 行，从 0 开始）。棋盘上被删掉/挡住时会自动就近找一个。
-@export var spawn_cell := Vector2i(17, 3)
+@export var spawn_cell := Vector2i(15, 1)
+## 基地（船坞）所在格：列, 行，从 0 开始。默认 F5。
+@export var base_cell := Vector2i(4, 3)
+## 基地占的几格：D4、E4、F3（E4 作为寻路主目标）。
+@export var base_cells: Array[Vector2i] = [Vector2i(3, 3), Vector2i(4, 3), Vector2i(5, 2)]
 
 @export_group("格子")
 ## 直接删掉的格子编号区间，编号沿用旧的「行 × 列数 + 列 + 1」行优先编号。
-@export var removed_cell_ranges := [[1, 60], [74, 77], [91, 92], [109, 111], [127, 127]]
+@export var removed_cell_ranges := [[10, 18], [26, 26], [32, 32], [41, 41]]
 ## 删完之后再补回来的格子（列, 行，从 0 开始）。
 ## 当前补的是 I4~R4 上面一行（I3~R3）+ A9 上方一格（A8）+ B8 上方一格（B7）。
 @export var restored_cells: Array[Vector2i] = [
-	Vector2i(8, 2), Vector2i(9, 2), Vector2i(10, 2), Vector2i(11, 2), Vector2i(12, 2),
-	Vector2i(13, 2), Vector2i(14, 2), Vector2i(15, 2), Vector2i(16, 2), Vector2i(17, 2),
-	Vector2i(0, 7), Vector2i(1, 6),
+	Vector2i(0, 9), Vector2i(1, 9), Vector2i(2, 9), Vector2i(3, 9), Vector2i(4, 9),
+	Vector2i(5, 9), Vector2i(6, 9), Vector2i(7, 9), Vector2i(8, 9), Vector2i(9, 9),
+	Vector2i(10, 9), Vector2i(11, 9), Vector2i(12, 9), Vector2i(13, 9), Vector2i(14, 9),
+	Vector2i(15, 9), Vector2i(16, 9), Vector2i(17, 9),
+	Vector2i(0, 6), Vector2i(1, 6), Vector2i(0, 5), Vector2i(1, 5),
+	Vector2i(8, 1), Vector2i(9, 1), Vector2i(10, 1), Vector2i(11, 1),
+	Vector2i(12, 1), Vector2i(14, 1), Vector2i(15, 1), Vector2i(16, 1), Vector2i(17, 1),
+	Vector2i(3, 3), Vector2i(5, 2),
+
 ]
 
 @export_group("操作")
@@ -121,6 +143,14 @@ var _spawned_total := 0
 var _units_lost := 0
 var _elapsed := 0.0
 var _intro_playing := false
+var _base_sprite: Sprite2D
+var _base_marker: Node2D
+var _base_anchor_y := 0.0
+var _dock_index := -1
+var _press_unit_cell := Vector2i(-1, -1)
+var _press_mouse := Vector2.ZERO
+var _press_dragged := false
+var _chase_tick := 0.0
 
 
 func _ready() -> void:
@@ -133,6 +163,7 @@ func _ready() -> void:
 	_restore_cells()
 	_resolve_spawn_cells()
 	_board_view.board = board
+	_board_view.base_cells = base_cells
 	_fit_board()
 	_add_base_marker()
 	_add_obstacles()
@@ -189,6 +220,9 @@ func _process(delta: float) -> void:
 	_elapsed += delta
 	_check_story()
 	_check_waves()
+	_refresh_move_markers()
+	_update_chasing(delta)
+	_repair_at_base(delta)
 	if _elapsed >= match_seconds and not _is_over:
 		_win()
 	_refresh_panel()
@@ -221,11 +255,25 @@ func _unhandled_input(event: InputEvent) -> void:
 					_update_drag()
 		else:
 			_update_hover()
+			if _press_unit_cell != Vector2i(-1, -1) and not _press_dragged:
+				var mouse_local: Vector2 = _board_view.to_local(get_global_mouse_position())
+				if mouse_local.distance_to(_press_mouse) > 0.3:
+					_press_dragged = true
 	elif event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if _placing:
 				if event.pressed:
-					_try_place(_mouse_cell())
+					var press_cell := _mouse_cell()
+					if _unit_nodes.has(press_cell):
+						# 放置模式下点到已有的船：退出放置，改成选中/拖动这艘船。
+						_cancel_place_mode()
+						_handle_left_click(press_cell)
+						_press_unit_cell = _selected_unit_cell
+						_press_mouse = _board_view.to_local(get_global_mouse_position())
+						_press_dragged = false
+						_fade_unit(_press_unit_cell, 0.45)
+					else:
+						_try_place(press_cell)
 			elif drag_to_move:
 				if event.pressed:
 					_on_left_pressed(_mouse_cell())
@@ -233,6 +281,13 @@ func _unhandled_input(event: InputEvent) -> void:
 					_on_left_released()
 			elif event.pressed:
 				_handle_left_click(_mouse_cell())
+				_press_unit_cell = _selected_unit_cell
+				_press_mouse = _board_view.to_local(get_global_mouse_position())
+				_press_dragged = false
+				# 按住船的瞬间就进入“拖动中”：虚化且敌人打不到，松手恢复。
+				_fade_unit(_press_unit_cell, 0.45)
+			else:
+				_on_click_released()
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			if _placing:
 				_cancel_place_mode()
@@ -297,6 +352,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # ---------------------------------------------------------------- 地图
 
+## 屏幕最右边偶尔会闪一条缝，直接压一条黑色窄边盖掉（见 game.tscn 的 ScreenEdge）。
 func _build_board() -> void:
 	var columns := fixed_columns
 	var rows := fixed_rows
@@ -308,7 +364,7 @@ func _build_board() -> void:
 		rows = maxi(5, floori((area.y - 2.0 * target_hex_radius) / cell_height) + 1)
 
 	board = HexBoardClass.new(columns, rows)
-	board.base_cell = Vector2i(0, rows - 1)
+	board.base_cell = base_cell
 	board.spawn_cells = []
 
 
@@ -346,10 +402,29 @@ func _nearest_spawnable(from: Vector2i) -> Vector2i:
 	return Vector2i(-1, -1)
 
 
+## 离某个格子最近的基地判定格。
+func _nearest_base_cell(from: Vector2i) -> Vector2i:
+	var best := board.base_cell
+	var best_distance := 1.0e9
+	for cell in base_cells:
+		if board.is_removed(cell):
+			continue
+		var distance := float(board.hex_distance(from, cell))
+		if distance < best_distance:
+			best_distance = distance
+			best = cell
+	return best
+
+
+## 基地占的格子（D4 / E4 / F3）。
+func _is_base_cell(cell: Vector2i) -> bool:
+	return base_cells.has(cell)
+
+
 func _is_spawnable(cell: Vector2i) -> bool:
 	if not board.is_inside(cell):
 		return false
-	if cell == board.base_cell:
+	if cell == board.base_cell or _is_base_cell(cell):
 		return false
 	if board.is_removed(cell) or board.is_blocked(cell):
 		return false
@@ -377,8 +452,56 @@ func _fit_board() -> void:
 
 func _add_base_marker() -> void:
 	var marker: Node2D = BASE_SCENE.instantiate()
-	marker.position = board.cell_center(board.base_cell)
+	marker.position = board.cell_center(Vector2i(4, 2))
 	_board_view.add_child(marker)
+	_base_marker = marker
+	_base_anchor_y = marker.position.y
+	_base_sprite = marker.get_node_or_null("Sprite") as Sprite2D
+	if _base_sprite != null:
+		var dock_material := ShaderMaterial.new()
+		dock_material.shader = DOCK_WATER_SHADER
+		_base_sprite.material = dock_material
+	_dock_index = -1
+	_apply_dock(_dock_index_for_hp(_base_hp), false)
+
+
+## 船坞按血量分四档：完整 / 轻度破损 / 中度破损 / 废墟。
+func _dock_index_for_hp(hp: int) -> int:
+	var ratio := clampf(float(hp) / float(base_max_hp), 0.0, 1.0)
+	if ratio > 0.75:
+		return 0
+	if ratio > 0.5:
+		return 1
+	if ratio > 0.2:
+		return 2
+	return 3
+
+
+func _apply_dock(index: int, animate := true) -> void:
+	if _base_sprite == null or index == _dock_index:
+		return
+	_dock_index = index
+	var texture: Texture2D = DOCK_TEXTURES[clampi(index, 0, DOCK_TEXTURES.size() - 1)]
+	_base_sprite.texture = texture
+	var factor := DOCK_WIDTH / maxf(1.0, float(texture.get_width()))
+	_base_sprite.scale = Vector2(factor, factor)
+	if animate:
+		_base_sprite.position = Vector2.ZERO
+		var tween := create_tween()
+		tween.tween_property(_base_sprite, "scale", Vector2.ONE * factor * 1.08, 0.08)
+		tween.tween_property(_base_sprite, "scale", Vector2.ONE * factor, 0.22)
+		Fx.play(_board_view, board.cell_center(board.base_cell), FX_SPLASH, 2.4, 0.4, 0.5)
+		_shake_base()
+
+
+func _shake_base() -> void:
+	if _base_sprite == null:
+		return
+	var home: Vector2 = _base_sprite.position
+	var tween := create_tween()
+	tween.tween_property(_base_sprite, "position", home + Vector2(0.06, 0.0), 0.05)
+	tween.tween_property(_base_sprite, "position", home - Vector2(0.05, 0.02), 0.05)
+	tween.tween_property(_base_sprite, "position", home, 0.06)
 
 
 func _add_obstacles() -> void:
@@ -421,6 +544,16 @@ func _remove_cells() -> void:
 				continue
 			board.remove_cell(Vector2i(index % board.columns, index / board.columns))
 
+	# 左侧阶梯边界：每行从第几列开始（照手绘图的格子）。
+	# 行 0 从 J1（第 9 列）开始，行 1 从 H2（第 7 列），依此类推。
+	var row_left := {0: 9, 1: 7, 2: 6, 3: 3, 4: 3}
+	for cell in board.all_cells():
+		var min_col: int = row_left.get(cell.y, 0)
+		if cell.x < min_col:
+			board.remove_cell(cell)
+
+
+
 
 ## 删除之后再把一部分格子补回来。
 func _restore_cells() -> void:
@@ -434,7 +567,7 @@ func _try_build(cell: Vector2i, type := 0, from_base := false) -> bool:
 	if board.is_removed(cell):
 		_toast("这一格不存在")
 		return false
-	if cell == board.base_cell or board.spawn_cells.has(cell):
+	if cell == board.base_cell or _is_base_cell(cell) or board.spawn_cells.has(cell):
 		_toast("基地和出生点不能放")
 		return false
 	if board.is_blocked(cell):
@@ -470,7 +603,7 @@ func _try_build(cell: Vector2i, type := 0, from_base := false) -> bool:
 		# 新船从基地出发，逐格走到目标格；途中不开火、不转向。
 		unit.position = board.cell_center(board.base_cell)
 		unit.move_through(route)
-		_show_move_marker(cell, unit)
+		_refresh_move_markers()
 	else:
 		unit.position = board.cell_center(cell)
 
@@ -505,8 +638,29 @@ func _on_unit_died(unit) -> void:
 
 # ---------------------------------------------------------------- 点选移动
 
-## 左键：点塔选中，再点空格移动；点空格放塔。
+## 左键：点单位选中（正在移动的也能点），再点空格移动；点空格放塔。
+func _on_click_released() -> void:
+	# 按住我方单位拖了一下再松手：取消选择，不留选中状态。
+	if _press_unit_cell != Vector2i(-1, -1):
+		_fade_unit(_press_unit_cell, 1.0)
+	if _press_unit_cell != Vector2i(-1, -1) and _press_dragged:
+		# 拖动后松手一律取消选中
+		_select_tower(Vector2i(-1, -1))
+	_press_unit_cell = Vector2i(-1, -1)
+	_press_dragged = false
+
+
 func _handle_left_click(cell: Vector2i) -> void:
+	# 正在移动的单位不在格心，用距离判断有没有点中它。
+	var clicked_unit = _unit_at_mouse()
+	if clicked_unit != null:
+		var unit_cell := _cell_of_unit(clicked_unit)
+		if _selected_unit_cell == unit_cell:
+			_select_tower(Vector2i(-1, -1))
+		else:
+			_select_tower(unit_cell)
+		return
+
 	if _selected_unit_cell != Vector2i(-1, -1):
 		if cell == _selected_unit_cell:
 			_select_tower(Vector2i(-1, -1))
@@ -521,9 +675,43 @@ func _handle_left_click(cell: Vector2i) -> void:
 		_select_tower(cell)
 
 
+## 鼠标附近的我方单位（含正在移动的）。
+func _unit_at_mouse():
+	var mouse_local: Vector2 = _board_view.to_local(get_global_mouse_position())
+	for key in _unit_nodes:
+		var unit = _unit_nodes[key]
+		if is_instance_valid(unit) and unit.position.distance_to(mouse_local) <= 0.7:
+			return unit
+	return null
+
+
+func _fade_unit(cell: Vector2i, alpha: float) -> void:
+	var unit = _unit_nodes.get(cell)
+	if unit != null and is_instance_valid(unit):
+		unit.modulate = Color(1, 1, 1, alpha)
+		unit.being_dragged = alpha < 1.0
+
+
+func _cell_of_unit(unit) -> Vector2i:
+	for key in _unit_nodes:
+		if _unit_nodes[key] == unit:
+			return key
+	return Vector2i(-1, -1)
+
+
 func _select_tower(cell: Vector2i) -> void:
+	if _selected_unit_cell != cell and _selected_unit_cell != Vector2i(-1, -1):
+		_fade_unit(_selected_unit_cell, 1.0)
 	_selected_unit_cell = cell
 	_board_view.selected_cell = cell
+	if cell == Vector2i(-1, -1):
+		if not _placing:
+			_board_view.show_grid = false
+			_board_view.show_veil = false
+	else:
+		# 选中准备移动时也把网格亮出来，方便看距离。
+		_board_view.show_grid = true
+		_board_view.show_veil = false
 	_board_view.queue_redraw()
 
 
@@ -536,46 +724,41 @@ const TYPE_CANNON := 2
 
 ## 左边三个按钮，按住其中一个拖动就是放对应的船。
 func _build_unit_buttons() -> void:
-	var font := SystemFont.new()
-	font.font_names = PackedStringArray([
-		"Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "PingFang SC",
-	])
+	var font: Font = SongFont.make(400.0)
 	for type in [TYPE_SENTRY, TYPE_ROCKET, TYPE_CANNON]:
 		var stats: Dictionary = UnitClass.STATS[type]
-		var color: Color = stats.color
 		var button := Button.new()
 		button.focus_mode = Control.FOCUS_NONE
-		button.custom_minimum_size = Vector2(210, 54)
+		button.custom_minimum_size = Vector2(200, 50)
 		button.text = "%s · %d粮草" % [stats.name, int(stats.cost)]
 		button.tooltip_text = "%s\n%s\n血量 %d · 花费 %d 粮草" % [
 			stats.name, stats.desc, int(stats.hp), int(stats.cost)
 		]
 		button.add_theme_font_override("font", font)
-		button.add_theme_font_size_override("font_size", 19)
-		button.add_theme_color_override("font_color", Color.WHITE)
-		button.add_theme_color_override("font_hover_color", Color.WHITE)
-		button.add_theme_color_override("font_pressed_color", Color(0.92, 0.94, 1.0))
-		button.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.65))
-		button.add_theme_stylebox_override("normal", _make_button_style(color))
-		button.add_theme_stylebox_override("hover", _make_button_style(color.lightened(0.12)))
-		button.add_theme_stylebox_override("pressed", _make_button_style(color.darkened(0.15)))
-		button.add_theme_stylebox_override("disabled", _make_button_style(Color(0.62, 0.66, 0.72, 0.55)))
+		button.add_theme_font_size_override("font_size", 18)
+		button.add_theme_color_override("font_color", Color(0.96, 0.95, 0.92))
+		button.add_theme_color_override("font_hover_color", Color(1, 1, 1))
+		button.add_theme_color_override("font_pressed_color", Color(0.85, 0.86, 0.88))
+		button.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.35))
+		button.add_theme_stylebox_override("normal", _ink_button_style(Color(1, 1, 1, 1)))
+		button.add_theme_stylebox_override("hover", _ink_button_style(Color(1.25, 1.25, 1.25, 1)))
+		button.add_theme_stylebox_override("pressed", _ink_button_style(Color(0.75, 0.75, 0.75, 1)))
+		button.add_theme_stylebox_override("disabled", _ink_button_style(Color(0.55, 0.55, 0.55, 0.45)))
 		button.button_down.connect(_on_unit_button_down.bind(type))
 		button.pressed.connect(_on_unit_button_pressed.bind(type))
 		_place_buttons_box.add_child(button)
 		_place_buttons[type] = button
 
 
-func _make_button_style(color: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = color
-	style.corner_radius_top_left = 14
-	style.corner_radius_top_right = 14
-	style.corner_radius_bottom_right = 14
-	style.corner_radius_bottom_left = 14
-	style.shadow_color = Color(0.06, 0.18, 0.55, 0.28)
-	style.shadow_size = 8
-	style.shadow_offset = Vector2(0, 3)
+## 用用户给的墨迹图当按钮底：整张拉伸，文字压在墨迹上。
+func _ink_button_style(tint: Color) -> StyleBoxTexture:
+	var style := StyleBoxTexture.new()
+	style.texture = INK_BUTTON_TEXTURE
+	style.modulate_color = tint
+	style.content_margin_left = 24.0
+	style.content_margin_right = 24.0
+	style.content_margin_top = 5.0
+	style.content_margin_bottom = 5.0
 	return style
 
 
@@ -585,7 +768,7 @@ func _on_unit_button_down(type: int) -> void:
 	_enter_place_mode(type)
 
 
-func _on_unit_button_pressed(type: int) -> void:
+func _on_unit_button_pressed(_type: int) -> void:
 	# 松开时还停在按钮上：刚按下去那一下保持放船模式等玩家拖；
 	# 已经处于放船模式再点按钮，则取消。
 	if _placing and not _place_drag_held:
@@ -605,9 +788,11 @@ func _enter_place_mode(type: int) -> void:
 	_place_drag_held = true
 	_select_tower(Vector2i(-1, -1))
 	_ghost_unit = UNIT_SCENE.instantiate()
+	_ghost_unit.is_ghost = true
 	_ghost_unit.setup(type)
 	_ghost_unit.modulate = Color(1, 1, 1, 0.65)
 	_board_view.add_child(_ghost_unit)
+	_ghost_unit.remove_from_group("units")
 	# 必须在进树之后再关，否则会被 _process 自动开启。
 	_ghost_unit.set_process(false)
 	_board_view.show_grid = true
@@ -670,6 +855,8 @@ func _apply_ghost(mouse_local: Vector2) -> void:
 
 func _try_place(cell: Vector2i) -> void:
 	if board == null or not board.is_inside(cell) or _place_type < 0:
+		if _placing:
+			_cancel_place_mode()
 		return
 	var stats: Dictionary = UnitClass.STATS[_place_type]
 	if _supplies < stats.cost:
@@ -677,6 +864,7 @@ func _try_place(cell: Vector2i) -> void:
 		return
 	if not _can_place(cell):
 		_toast("这里不能放")
+		_cancel_place_mode()
 		return
 	var type := _place_type
 	_cancel_place_mode()
@@ -836,11 +1024,15 @@ func _try_move_unit(from_cell: Vector2i, to_cell: Vector2i) -> bool:
 	var tower = _unit_nodes.get(from_cell)
 	if tower == null or not is_instance_valid(tower):
 		return false
-	if tower.is_moving():
-		_toast("塔正在移动")
-		return false
 
-	var distance := board.hex_distance(from_cell, to_cell)
+	# 正在移动的单位可以重新选目的地：从它当前所在的格子重新算路和花费。
+	var start_cell := from_cell
+	if tower.is_moving():
+		var current := board.world_to_cell(tower.position)
+		if board.is_inside(current):
+			start_cell = current
+
+	var distance := board.hex_distance(start_cell, to_cell)
 	var cost := distance * move_cost_per_cell
 	if _command < cost:
 		_toast("指挥点不足：移动 %d 格需要 %d" % [distance, int(cost)])
@@ -850,19 +1042,21 @@ func _try_move_unit(from_cell: Vector2i, to_cell: Vector2i) -> bool:
 		return false
 
 	board.unblock(from_cell)
-	var route := board.find_path(from_cell, to_cell)
+	var route := board.find_path(start_cell, to_cell)
 	board.block(to_cell, "unit")
 	_unit_nodes.erase(from_cell)
 	_unit_nodes[to_cell] = tower
 
 	var points := PackedVector2Array()
 	for path_cell in route:
-		if path_cell != from_cell:
+		if path_cell != start_cell:
 			points.append(board.cell_center(path_cell))
 	if points.is_empty():
 		points.append(board.cell_center(to_cell))
 	tower.move_through(points)
-	_show_move_marker(to_cell, tower)
+	_refresh_move_markers()
+	if _selected_unit_cell == from_cell:
+		_select_tower(to_cell)
 
 	_command -= cost
 	_repath_enemies()
@@ -872,18 +1066,18 @@ func _try_move_unit(from_cell: Vector2i, to_cell: Vector2i) -> bool:
 	return true
 
 
-## 滑行期间在目的地显示带刻度的蓝框，落地后清掉。
-func _show_move_marker(cell: Vector2i, tower) -> void:
-	_board_view.drag_target_cell = cell
-	_board_view.drag_target_valid = true
+## 滑行期间在目的地显示带刻度的蓝框，落地后自动消失；
+## 同时移动几艘船就画几个框。
+func _refresh_move_markers() -> void:
+	var cells: Array = []
+	for cell in _unit_nodes:
+		var unit = _unit_nodes[cell]
+		if is_instance_valid(unit) and unit.is_moving():
+			cells.append(cell)
+	if cells == _board_view.move_marker_cells:
+		return
+	_board_view.move_marker_cells = cells
 	_board_view.queue_redraw()
-	tower.move_finished.connect(_on_tower_move_finished.bind(cell), CONNECT_ONE_SHOT)
-
-
-func _on_tower_move_finished(target_cell: Vector2i) -> void:
-	if _board_view.drag_target_cell == target_cell:
-		_board_view.drag_target_cell = Vector2i(-1, -1)
-		_board_view.queue_redraw()
 
 
 ## 假设塔从 from_cell 挪到 to_cell，检查所有出生点是否还走得到基地。
@@ -1050,7 +1244,7 @@ func _spawn_enemy(type := -1, from_cell := Vector2i(-1, -1)) -> void:
 	var waypoint := Vector2i(-1, -1)
 	if _rng.randf() < 0.45:
 		waypoint = _pick_waypoint(spawn)
-	var cells := _route_through(spawn, waypoint)
+	var cells := _route_through(spawn, waypoint, _nearest_base_cell(spawn))
 	if cells.size() < 2:
 		return
 	var points := PackedVector2Array()
@@ -1101,12 +1295,14 @@ func _pick_waypoint(spawn: Vector2i) -> Vector2i:
 
 
 ## 拼出「起点 →（可选的中途格）→ 基地」的格子序列。
-func _route_through(from: Vector2i, waypoint: Vector2i) -> Array[Vector2i]:
-	var direct := board.find_path(from, board.base_cell)
+func _route_through(from: Vector2i, waypoint: Vector2i, target := Vector2i(-1, -1)) -> Array[Vector2i]:
+	if target == Vector2i(-1, -1):
+		target = board.base_cell
+	var direct := board.find_path(from, target)
 	if waypoint == Vector2i(-1, -1):
 		return direct
 	var head := board.find_path(from, waypoint)
-	var tail := board.find_path(waypoint, board.base_cell)
+	var tail := board.find_path(waypoint, target)
 	if head.is_empty() or tail.is_empty():
 		return direct
 	var merged: Array[Vector2i] = head.duplicate()
@@ -1120,6 +1316,7 @@ func _on_enemy_reached(enemy) -> void:
 	_enemies.erase(enemy)
 	_reached += 1
 	_base_hp = maxi(0, _base_hp - 1)
+	_apply_dock(_dock_index_for_hp(_base_hp), true)
 	enemy.queue_free()
 	_update_stats()
 	if _base_hp <= 0:
@@ -1138,6 +1335,10 @@ func _repath_enemies() -> void:
 	for enemy in _enemies:
 		if not is_instance_valid(enemy):
 			continue
+		if enemy.chasing:
+			# 追击目标下一拍会重新计算路线
+			enemy.chase_cell = Vector2i(-1, -1)
+			continue
 		var cell := board.world_to_cell(enemy.position)
 		if not board.is_inside(cell):
 			continue
@@ -1150,6 +1351,94 @@ func _repath_enemies() -> void:
 		var cells := _route_through(cell, waypoint)
 		if cells.size() > 1:
 			enemy.follow_cells(cells, board)
+
+
+## 敌人全图索敌：有船就追最近的船（路线带随机绕行），没船才回基地。
+## 船停在基地格（D4/F3）时，持续花粮草把它修满。
+func _repair_at_base(delta: float) -> void:
+	if _supplies <= 0.0:
+		return
+	for cell in _unit_nodes:
+		if not base_cells.has(cell):
+			continue
+		var unit = _unit_nodes[cell]
+		if not is_instance_valid(unit) or unit.hp >= unit.max_hp:
+			continue
+		var want := REPAIR_HP_PER_SECOND * delta
+		var affordable := _supplies / REPAIR_SUPPLY_PER_SECOND * REPAIR_HP_PER_SECOND
+		var healed: float = unit.repair(minf(want, affordable))
+		if healed <= 0.0:
+			continue
+		_supplies -= healed / REPAIR_HP_PER_SECOND * REPAIR_SUPPLY_PER_SECOND
+
+
+func _update_chasing(delta: float) -> void:
+	_chase_tick += delta
+	if _chase_tick < 0.35:
+		return
+	_chase_tick = 0.0
+	for enemy in _enemies:
+		if not is_instance_valid(enemy):
+			continue
+		var enemy_cell := board.world_to_cell(enemy.position)
+		if not board.is_inside(enemy_cell):
+			continue
+		var target = _nearest_unit_for(enemy)
+		if target != null:
+			var target_cell := board.world_to_cell(target.position)
+			if not board.is_inside(target_cell) or board.is_removed(target_cell):
+				continue
+			if board.hex_distance(enemy_cell, target_cell) <= 1:
+				continue
+			if enemy.chase_cell == target_cell:
+				continue
+			enemy.chase_cell = target_cell
+			enemy.chasing = true
+			var cells := _chase_route(enemy_cell, target_cell)
+			if cells.size() > 1:
+				enemy.follow_cells(cells, board)
+		elif enemy.chasing:
+			# 我方单位全灭，回去打基地
+			enemy.chasing = false
+			enemy.chase_cell = Vector2i(-1, -1)
+			var goal := _nearest_base_cell(enemy_cell)
+			var cells := board.find_path(enemy_cell, goal)
+			if cells.size() > 1:
+				enemy.follow_cells(cells, board)
+
+
+func _nearest_unit_for(enemy):
+	var best = null
+	var best_distance := 1.0e12
+	for unit in _unit_nodes.values():
+		if not is_instance_valid(unit) or unit.is_ghost or unit.being_dragged:
+			continue
+		var distance: float = enemy.position.distance_to(unit.position)
+		if distance < best_distance:
+			best_distance = distance
+			best = unit
+	return best
+
+
+## 追人路线：中点附近随机挑一个空格绕一下，避免一条直线。
+func _chase_route(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
+	var direct := board.find_path(from, to)
+	if direct.size() < 3:
+		return direct
+	var mid: Vector2i = direct[int(direct.size() / 2.0)]
+	var neighbors := board.neighbors(mid)
+	_shuffle(neighbors)
+	for cell in neighbors:
+		if cell == to or board.is_removed(cell) or board.is_blocked(cell):
+			continue
+		var head := board.find_path(from, cell)
+		var tail := board.find_path(cell, to)
+		if head.is_empty() or tail.is_empty():
+			continue
+		var merged: Array[Vector2i] = head.duplicate()
+		merged.append_array(tail.slice(1))
+		return merged
+	return direct
 
 
 func _refresh_paths() -> void:

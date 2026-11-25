@@ -50,12 +50,21 @@ const STATS := {
 }
 
 const PROJECTILE_SCENE := preload("res://scenes/entities/projectile.tscn")
-const SQUARE_SIZE := 0.92
+const FX_SMOKE := preload("res://assets/fx/smoke.png")
+## 每种船一张图。
+const SHIP_TEXTURES := {
+	Type.SENTRY: preload("res://assets/ships/sentry.png"),
+	Type.ROCKET: preload("res://assets/ships/rocket.png"),
+	Type.CANNON: preload("res://assets/ships/cannon.png"),
+}
+## 船在棋盘上的显示宽度（格）。
+const SHIP_WIDTHS := {
+	Type.SENTRY: 1.55,
+	Type.ROCKET: 1.85,
+	Type.CANNON: 1.95,
+}
 const STEP_TRAVEL_SPEED := 4.5   # 单位/秒，逐格移动的行进速度
-const STEP_PAUSE := 0.4          # 每走到一格停多久
-const BAR_WIDTH := 0.86
-const BAR_HEIGHT := 0.10
-const BAR_TOP := -0.64
+const STEP_PAUSE := 0.0          # 不停顿，连续滑行
 
 var unit_type := Type.SENTRY
 var stats: Dictionary = {}
@@ -76,10 +85,23 @@ var _flash_time := 0.0
 var _stun_time := 0.0
 var _burn_time := 0.0
 var _burn_dps := 0.0
+var _ship: Sprite2D
+var _tier := 4
+var _bob_time := 0.0
+## 被拖动时敌人不索敌、不攻击。
+var being_dragged := false
+## 放置时的虚影：不进 units 组，敌人不会索敌它。
+var is_ghost := false
 
 
 func _ready() -> void:
-	add_to_group("units")
+	if not is_ghost:
+		add_to_group("units")
+	_ship = Sprite2D.new()
+	_ship.centered = true
+	_ship.position = Vector2(0.0, -0.05)
+	add_child(_ship)
+	_refresh_ship(true)
 
 
 func setup(type: Type) -> void:
@@ -88,12 +110,58 @@ func setup(type: Type) -> void:
 	cost = stats.cost
 	max_hp = stats.hp
 	hp = max_hp
+	_refresh_ship(true)
 	queue_redraw()
+
+
+## 血量挡位：4 = 满血，1 = 快沉了。
+func _tier_for_hp() -> int:
+	if max_hp <= 0.0:
+		return 1
+	return clampi(ceili(hp / max_hp * 4.0), 1, 4)
+
+
+## 换上对应的船图，按格宽缩放。
+func _refresh_ship(force := false) -> void:
+	if _ship == null:
+		return
+	var tier := _tier_for_hp()
+	if not force and tier == _tier and _ship.texture != null:
+		return
+	_tier = tier
+	var texture: Texture2D = SHIP_TEXTURES.get(unit_type)
+	if texture == null:
+		return
+	_ship.texture = texture
+	var width: float = SHIP_WIDTHS.get(unit_type, 1.6)
+	var factor := width / maxf(1.0, float(texture.get_width()))
+	_ship.scale = Vector2(factor, factor)
+
+
+## 攻击力随挡位变化：1 档 = 50%，4 档 = 100%。
+func _damage_multiplier() -> float:
+	return 0.5 + 0.5 * float(_tier - 1) / 3.0
+
+
+## 维修：返回实际回复量。
+func repair(amount: float) -> float:
+	var missing := max_hp - hp
+	if missing <= 0.0:
+		return 0.0
+	var healed := minf(amount, missing)
+	hp += healed
+	_refresh_ship(true)
+	return healed
 
 
 func _process(delta: float) -> void:
 	if _dead:
 		return
+	if being_dragged:
+		modulate = Color(1, 1, 1, 0.45)
+	_bob_time += delta
+	if _ship != null:
+		_ship.position.y = -0.05 + sin(_bob_time * 2.2) * 0.02
 	if _flash_time > 0.0:
 		_flash_time -= delta
 		if _flash_time <= 0.0:
@@ -107,9 +175,9 @@ func _process(delta: float) -> void:
 		_stun_time -= delta
 		return
 	if _stepping:
+		# 逐格移动中也会走到下面的攻击逻辑：移动时照样能开火。
 		_advance_step(delta)
-		return
-	if _moving or _held:
+	elif _moving or _held:
 		return
 
 	if unit_type == Type.SENTRY:
@@ -150,9 +218,9 @@ func _fire(target) -> void:
 	var angle: float = (target.position - position).angle()
 	var projectile = PROJECTILE_SCENE.instantiate()
 	if unit_type == Type.ROCKET:
-		projectile.setup_rocket(target, stats.attack, stats.burn_dps, stats.burn_time)
+		projectile.setup_rocket(target, stats.attack * _damage_multiplier(), stats.burn_dps, stats.burn_time)
 	else:
-		projectile.setup_shell(target, stats.attack, stats.aoe_radius, stats.instakill)
+		projectile.setup_shell(target, stats.attack * _damage_multiplier(), stats.aoe_radius, stats.instakill)
 	get_parent().add_child(projectile)
 	projectile.position = position
 	projectile.rotation = angle
@@ -163,10 +231,11 @@ func take_damage(amount: float) -> void:
 
 
 func _apply_damage(amount: float, flash: bool) -> void:
-	if _dead:
+	if _dead or being_dragged:
 		return
 	hp = maxf(0.0, hp - amount)
-	if flash:
+	_refresh_ship()
+	if flash and not being_dragged:
 		_flash_time = 0.10
 		modulate = Color(1.6, 1.6, 1.6)
 	queue_redraw()
@@ -191,7 +260,14 @@ func _die() -> void:
 	_dead = true
 	remove_from_group("units")
 	died.emit(self)
-	queue_free()
+	# 沉船反馈：墨烟 + 缩小旋转淡出
+	Fx.play(get_parent(), position, FX_SMOKE, 2.2, 0.5, 0.6)
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(self, "scale", Vector2(0.7, 0.7), 0.6)
+	tween.tween_property(self, "rotation", 0.22, 0.6)
+	tween.tween_property(self, "modulate:a", 0.0, 0.6)
+	tween.chain().tween_callback(queue_free)
 
 
 ## 平移到新位置；途中不能开火。
@@ -262,16 +338,7 @@ func _draw() -> void:
 	if _dead:
 		return
 	var color: Color = stats.color
-	var half := SQUARE_SIZE * 0.5
 
 	if unit_type == Type.SENTRY:
-		draw_circle(Vector2.ZERO, stats.range, Color(color.r, color.g, color.b, 0.07))
-		draw_arc(Vector2.ZERO, stats.range, 0.0, TAU, 64, Color(color.r, color.g, color.b, 0.35), 0.04, true)
-
-	draw_rect(Rect2(-half, -half, SQUARE_SIZE, SQUARE_SIZE), color)
-	draw_rect(Rect2(-half, -half, SQUARE_SIZE, SQUARE_SIZE), color.darkened(0.45), false, 0.06)
-
-	if hp < max_hp:
-		var ratio := clampf(hp / max_hp, 0.0, 1.0)
-		draw_rect(Rect2(-BAR_WIDTH * 0.5, BAR_TOP, BAR_WIDTH, BAR_HEIGHT), Color(0.0, 0.0, 0.0, 0.45))
-		draw_rect(Rect2(-BAR_WIDTH * 0.5, BAR_TOP, BAR_WIDTH * ratio, BAR_HEIGHT), Color(0.35, 0.82, 0.38))
+		draw_circle(Vector2.ZERO, stats.range, Color(color.r, color.g, color.b, 0.06))
+		draw_arc(Vector2.ZERO, stats.range, 0.0, TAU, 64, Color(color.r, color.g, color.b, 0.3), 0.04, true)

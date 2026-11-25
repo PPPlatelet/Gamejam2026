@@ -1,4 +1,4 @@
-class_name Enemy
+﻿class_name Enemy
 extends Node2D
 
 ## 敌人：沿格子中心连成的折线前进，有血量；会被减速、燃烧，也会伤害附近的单位。
@@ -14,6 +14,8 @@ signal died(enemy: Enemy)
 
 const HexBoardClass := preload("res://scripts/hex_board.gd")
 const BOOM_SCENE := preload("res://scenes/entities/boom.tscn")
+const FX_SMOKE := preload("res://assets/fx/smoke.png")
+const FX_BURST := preload("res://assets/fx/burst.png")
 
 enum Type { SMALL, SWORD, CHARGE, BOMB }
 
@@ -62,9 +64,9 @@ const STATS := {
 		"interval": 1.0,
 		"range": 1.5,
 		"explode_range": 1.5,
-		"explode_damage": 45.0,
-		"explode_radius": 1.8,
-		"ignite_dps": 4.0,
+		"explode_damage": 24.0,
+		"explode_radius": 1.4,
+		"ignite_dps": 2.0,
 		"ignite_time": 3.0,
 		"color": Color(0.45, 0.40, 0.52),
 		"scale": 1.3,
@@ -75,7 +77,7 @@ const BAR_WIDTH := 0.82
 const BAR_HEIGHT := 0.10
 const BAR_TOP := -0.64
 ## 每走到一格后停下等多久，再走下一格。
-const PAUSE_PER_CELL := 0.5
+const PAUSE_PER_CELL := 0.0
 
 var enemy_type := Type.SMALL
 var display_name := "倭寇小船"
@@ -112,6 +114,9 @@ var _burn_dps := 0.0
 var _slow_factor := 1.0
 var _slow_time := 0.0
 var _attack_timer := 0.0
+## 正在追我方单位（全图索敌）。
+var chasing := false
+var chase_cell := Vector2i(-1, -1)
 var _wait_time := 0.0
 var _jitter := 0.0
 var _buff_move_now := 1.0
@@ -348,7 +353,9 @@ func _explode() -> void:
 	counts_as_kill = false
 	var center := position
 	for unit in get_tree().get_nodes_in_group("units"):
-		if is_instance_valid(unit) and unit.position.distance_to(center) <= explode_radius:
+		if not is_instance_valid(unit) or unit.being_dragged or unit.is_ghost:
+			continue
+		if unit.position.distance_to(center) <= explode_radius:
 			unit.take_damage(explode_damage)
 			if ignite_dps > 0.0:
 				unit.apply_burn(ignite_dps, ignite_time)
@@ -356,6 +363,7 @@ func _explode() -> void:
 	boom.radius = explode_radius
 	get_parent().add_child(boom)
 	boom.position = center
+	Fx.play(get_parent(), center, FX_BURST, explode_radius * 1.6, 0.55, 0.5)
 	_die()
 
 
@@ -364,7 +372,7 @@ func _find_unit(radius: float):
 	var best = null
 	var best_distance := radius
 	for unit in get_tree().get_nodes_in_group("units"):
-		if not is_instance_valid(unit):
+		if not is_instance_valid(unit) or unit.being_dragged or unit.is_ghost:
 			continue
 		var distance: float = position.distance_to(unit.position)
 		if distance <= best_distance:
@@ -388,6 +396,7 @@ func _die() -> void:
 	_done = true
 	remove_from_group("enemies")
 	set_process(false)
+	Fx.play(get_parent(), position, FX_SMOKE, 1.3, 0.45, 0.6)
 	died.emit(self)
 	var tween := create_tween()
 	tween.tween_property(self, "scale", Vector2(1.35, 1.35), 0.18)
