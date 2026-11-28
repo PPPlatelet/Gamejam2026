@@ -173,7 +173,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(380, 64)
 layout_mode = 2
 focus_neighbor_top = NodePath("../QuitButton")
-focus_neighbor_bottom = NodePath("../CreditsButton")
+focus_neighbor_bottom = NodePath("../DemoButton")
 theme_override_colors/font_color = Color(0.9, 0.88, 0.82, 1)
 theme_override_colors/font_hover_color = Color(1, 0.95, 0.84, 1)
 theme_override_colors/font_pressed_color = Color(1, 0.9, 0.7, 1)
@@ -186,11 +186,29 @@ theme_override_styles/focus = SubResource("SB_btn_focus")
 text = "开始游戏"
 alignment = 0
 
-[node name="CreditsButton" type="Button" parent="MenuButtons"]
+[node name="DemoButton" type="Button" parent="MenuButtons"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(380, 64)
 layout_mode = 2
 focus_neighbor_top = NodePath("../StartButton")
+focus_neighbor_bottom = NodePath("../CreditsButton")
+theme_override_colors/font_color = Color(0.9, 0.88, 0.82, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.84, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.9, 0.7, 1)
+theme_override_fonts/font = SubResource("SystemFont_sans")
+theme_override_font_sizes/font_size = 27
+theme_override_styles/normal = SubResource("SB_btn_normal")
+theme_override_styles/hover = SubResource("SB_btn_hover")
+theme_override_styles/pressed = SubResource("SB_btn_pressed")
+theme_override_styles/focus = SubResource("SB_btn_focus")
+text = "视觉小说"
+alignment = 0
+
+[node name="CreditsButton" type="Button" parent="MenuButtons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(380, 64)
+layout_mode = 2
+focus_neighbor_top = NodePath("../DemoButton")
 focus_neighbor_bottom = NodePath("../QuitButton")
 theme_override_colors/font_color = Color(0.9, 0.88, 0.82, 1)
 theme_override_colors/font_hover_color = Color(1, 0.95, 0.84, 1)
@@ -225,9 +243,9 @@ alignment = 0
 [node name="Toast" type="Label" parent="."]
 unique_name_in_owner = true
 offset_left = 140.0
-offset_top = 712.0
+offset_top = 790.0
 offset_right = 900.0
-offset_bottom = 752.0
+offset_bottom = 830.0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.95, 0.83, 0.58, 1)
 theme_override_fonts/font = SubResource("SystemFont_sans")

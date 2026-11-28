@@ -33,9 +33,12 @@ func _ready() -> void:
 	open_tween.tween_property(_curtain, "modulate:a", 0.0, 1.2).set_trans(Tween.TRANS_SINE)
 
 	_start_button.pressed.connect(_start_game)
+	%DemoButton.pressed.connect(_start_demo)
 	_credits_button.pressed.connect(_show_credits)
 	_quit_button.pressed.connect(_quit_game)
 	_start_button.grab_focus()
+	if VN.menu.visible:
+		VN.menu.back.grab_focus()
 
 
 func _process(delta: float) -> void:
@@ -49,6 +52,8 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if VN.menu.visible or VN.is_open:
+		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
 		_quit_game()
 
@@ -62,12 +67,18 @@ func _start_game() -> void:
 		return
 	_starting = true
 	_start_button.disabled = true
+	%DemoButton.disabled = true
 	_credits_button.disabled = true
 	_quit_button.disabled = true
 	var fade := create_tween()
 	fade.tween_property(_curtain, "modulate:a", 1.0, 0.8).set_trans(Tween.TRANS_SINE)
 	await fade.finished
 	get_tree().change_scene_to_file(GAME_SCENE)
+
+
+func _start_demo() -> void:
+	if not _starting:
+		VN.show_title()
 
 
 func _show_credits() -> void:
